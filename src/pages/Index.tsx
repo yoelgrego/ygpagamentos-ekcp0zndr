@@ -24,13 +24,13 @@ type LookupType =
 const defaultForm = {
   id: '',
   idmov: '',
-  ano: new Date().getFullYear().toString(),
-  mes: (new Date().getMonth() + 1).toString().padStart(2, '0'),
-  dia: new Date().getDate().toString().padStart(2, '0'),
+  ano: '',
+  mes: '',
+  dia: '',
   valor: '',
   historico: '',
   cartao: '',
-  situacao: 'Pendente',
+  situacao: '',
 
   idforn: '',
   idfornNum: '',
