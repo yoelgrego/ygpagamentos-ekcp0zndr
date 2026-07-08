@@ -1,11 +1,13 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { YgLabel, YgInput, YgButton, YgFieldGroup } from '@/components/yg-ui'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { db, Movimento } from '@/lib/mock-db'
 import { useAppStore } from '@/stores/use-app-store'
+import { api } from '@/services/api'
 import { toast } from 'sonner'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
+import useRealtime from '@/hooks/use-realtime'
+import { cn } from '@/lib/utils'
 
-// Utility to estimate width based on character count
 const w = (chars: number) => `${chars * 8 + 12}px`
 
 type LookupType =
@@ -19,37 +21,77 @@ type LookupType =
   | 'objeto'
   | null
 
-export default function Index() {
-  const { movimentos, moveobjetos, addMovimento } = useAppStore()
+const defaultForm = {
+  id: '',
+  idmov: '',
+  ano: new Date().getFullYear().toString(),
+  mes: (new Date().getMonth() + 1).toString().padStart(2, '0'),
+  dia: new Date().getDate().toString().padStart(2, '0'),
+  valor: '',
+  historico: '',
+  cartao: '',
+  situacao: 'Pendente',
 
-  // Form State
-  const [formData, setFormData] = useState({
-    id: '9000002',
-    ano: '2026',
-    mes: '07',
-    dia: '08',
-    idforn: '',
-    fornName: '',
-    idben: '',
-    benName: '',
-    idmoeda: '',
-    moedaName: '',
-    valor: '',
-    cartao: '',
-    idtipodoc: '',
-    tipoDocName: '',
-    idpag: '',
-    pagadorName: '',
-    situacao: 'Pendente',
-    idcat: '',
-    catName: '',
-    idnat: '',
-    natName: '',
-    idobj: '',
-    objName: '',
+  idforn: '',
+  idfornNum: '',
+  fornName: '',
+  idben: '',
+  idbenNum: '',
+  benName: '',
+  idmoeda: '',
+  idmoedaNum: '',
+  moedaName: '',
+  idtipodoc: '',
+  idtipodocNum: '',
+  tipoDocName: '',
+  idpag: '',
+  idpagNum: '',
+  pagadorName: '',
+  idcat: '',
+  idcatNum: '',
+  catName: '',
+  idnat: '',
+  idnatNum: '',
+  natName: '',
+
+  idobj: '',
+  idobjNum: '',
+  objName: '',
+  objQuantidade: '1',
+  objValor: '',
+}
+
+export default function Index() {
+  const {
+    movimentos,
+    moveobjetos,
+    fornecedores,
+    beneficiarios,
+    moedas,
+    tipodocs,
+    pagadores,
+    categorias,
+    naturezas,
+    objetos,
+    fetchLookups,
+    fetchMovimentos,
+  } = useAppStore()
+
+  useEffect(() => {
+    fetchLookups()
+    fetchMovimentos()
+  }, [])
+
+  useRealtime('01movimento', () => {
+    fetchMovimentos()
+  })
+  useRealtime('02moveobjeto', () => {
+    fetchMovimentos()
   })
 
-  // Lookup Modal State
+  const [formData, setFormData] = useState(defaultForm)
+  const [selectedMoveObjId, setSelectedMoveObjId] = useState('')
+
   const [lookup, setLookup] = useState<{ isOpen: boolean; type: LookupType }>({
     isOpen: false,
     type: null,
@@ -62,74 +104,114 @@ export default function Index() {
   const handleSelect = (record: any) => {
     switch (lookup.type) {
       case 'fornecedor':
-        setFormData((p) => ({ ...p, idforn: record.idforn.toString(), fornName: record.nome }))
+        setFormData((p) => ({
+          ...p,
+          idforn: record.id,
+          idfornNum: record.idforn?.toString() || '',
+          fornName: record.nome,
+        }))
         break
       case 'beneficiario':
-        setFormData((p) => ({ ...p, idben: record.idben.toString(), benName: record.nome }))
+        setFormData((p) => ({
+          ...p,
+          idben: record.id,
+          idbenNum: record.idben?.toString() || '',
+          benName: record.nome,
+        }))
         break
       case 'moeda':
         setFormData((p) => ({
           ...p,
-          idmoeda: record.idmoeda.toString(),
+          idmoeda: record.id,
+          idmoedaNum: record.idmoeda?.toString() || '',
           moedaName: record.descricao,
         }))
         break
       case 'tipodoc':
         setFormData((p) => ({
           ...p,
-          idtipodoc: record.idtipodoc.toString(),
+          idtipodoc: record.id,
+          idtipodocNum: record.idtipodoc?.toString() || '',
           tipoDocName: record.descricao,
         }))
         break
       case 'pagador':
-        setFormData((p) => ({ ...p, idpag: record.idpag.toString(), pagadorName: record.nome }))
+        setFormData((p) => ({
+          ...p,
+          idpag: record.id,
+          idpagNum: record.idpag?.toString() || '',
+          pagadorName: record.nome,
+        }))
         break
       case 'categoria':
-        setFormData((p) => ({ ...p, idcat: record.idcat.toString(), catName: record.descricao }))
-        // Auto clear natureza if category changes
-        setFormData((p) => ({ ...p, idnat: '', natName: '' }))
+        setFormData((p) => ({
+          ...p,
+          idcat: record.id,
+          idcatNum: record.idcat?.toString() || '',
+          catName: record.descricao,
+          idnat: '',
+          idnatNum: '',
+          natName: '',
+        }))
         break
       case 'natureza':
-        setFormData((p) => ({ ...p, idnat: record.idnat.toString(), natName: record.descricao }))
+        setFormData((p) => ({
+          ...p,
+          idnat: record.id,
+          idnatNum: record.idnat?.toString() || '',
+          natName: record.descricao,
+        }))
         break
       case 'objeto':
-        setFormData((p) => ({ ...p, idobj: record.idobj.toString(), objName: record.descricao }))
+        setFormData((p) => ({
+          ...p,
+          idobj: record.id,
+          idobjNum: record.idobj?.toString() || '',
+          objName: record.descricao,
+        }))
         break
     }
     setLookup({ isOpen: false, type: null })
   }
 
-  // Get data for current lookup modal
   const lookupData = useMemo(() => {
     switch (lookup.type) {
       case 'fornecedor':
-        return { headers: ['ID', 'Nome', 'CNPJ/CPF'], data: db.fornecedores }
+        return { headers: ['ID', 'Nome', 'CNPJ/CPF'], data: fornecedores }
       case 'beneficiario':
-        return { headers: ['ID', 'Nome', 'Documento'], data: db.beneficiarios }
+        return { headers: ['ID', 'Nome', 'Documento'], data: beneficiarios }
       case 'moeda':
-        return { headers: ['ID', 'Símbolo', 'Descrição'], data: db.moedas }
+        return { headers: ['ID', 'Símbolo', 'Descrição'], data: moedas }
       case 'tipodoc':
-        return { headers: ['ID', 'Descrição'], data: db.tipodocs }
+        return { headers: ['ID', 'Descrição'], data: tipodocs }
       case 'pagador':
-        return { headers: ['ID', 'Nome'], data: db.pagadores }
+        return { headers: ['ID', 'Nome'], data: pagadores }
       case 'categoria':
-        return { headers: ['ID', 'Descrição'], data: db.categorias }
+        return { headers: ['ID', 'Descrição'], data: categorias }
       case 'natureza':
-        // Filter by selected category if any
         return {
           headers: ['ID', 'Descrição'],
-          data: formData.idcat
-            ? db.naturezas.filter((n) => n.idcat.toString() === formData.idcat)
-            : db.naturezas,
+          data: formData.idcat ? naturezas.filter((n) => n.idcat === formData.idcat) : naturezas,
         }
       case 'objeto':
-        return { headers: ['ID', 'Descrição', 'Tipo'], data: db.objetos }
+        return { headers: ['ID', 'Descrição', 'Tipo'], data: objetos }
       default:
         return { headers: [], data: [] }
     }
-  }, [lookup.type, formData.idcat])
+  }, [
+    lookup.type,
+    formData.idcat,
+    fornecedores,
+    beneficiarios,
+    moedas,
+    tipodocs,
+    pagadores,
+    categorias,
+    naturezas,
+    objetos,
+  ])
 
-  const renderModalRow = (row: any, i: number) => {
+  const renderModalRow = (row: any) => {
     switch (lookup.type) {
       case 'fornecedor':
         return (
@@ -196,43 +278,194 @@ export default function Index() {
     }
   }
 
-  // Derived view data for the main grid (V1movimento logic)
   const v1Movimentos = useMemo(() => {
-    return movimentos.map((m) => {
-      const nat = db.naturezas.find((n) => n.idnat === m.idnat)
-      const cat = db.categorias.find((c) => c.idcat === nat?.idcat)
-      const forn = db.fornecedores.find((f) => f.idforn === m.idforn)
-      const ben = db.beneficiarios.find((b) => b.idben === m.idben)
-      const pag = db.pagadores.find((p) => p.idpag === m.idpag)
-      const tipo = db.tipodocs.find((t) => t.idtipodoc === m.idtipodoc)
-      const moe = db.moedas.find((mo) => mo.idmoeda === m.idmoeda)
-
-      return {
-        ...m,
-        fornecedorNome: forn?.nome || '',
-        beneficiarioNome: ben?.nome || '',
-        moedaSimbolo: moe?.simbolo || '',
-        tipoDocDesc: tipo?.descricao || '',
-        pagadorNome: pag?.nome || '',
-        categoriaDesc: cat?.descricao || '',
-        naturezaDesc: nat?.descricao || '',
-      }
-    })
+    return movimentos.map((row) => ({
+      id: row.id,
+      idmov: row.idmov,
+      ano: row.ano,
+      mes: row.mes,
+      dia: row.dia,
+      valor: row.valor,
+      historico: row.historico,
+      cartao: row.cartao,
+      situacao: row.situacao,
+      idforn: row.expand?.idforn?.idforn || '',
+      fornecedorNome: row.expand?.idforn?.nome || '',
+      idben: row.expand?.idben?.idben || '',
+      beneficiarioNome: row.expand?.idben?.nome || '',
+      idmoeda: row.expand?.idmoeda?.idmoeda || '',
+      moedaSimbolo: row.expand?.idmoeda?.simbolo || '',
+      idtipodoc: row.expand?.idtipodoc?.idtipodoc || '',
+      tipoDocDesc: row.expand?.idtipodoc?.descricao || '',
+      idpag: row.expand?.idpag?.idpag || '',
+      pagadorNome: row.expand?.idpag?.nome || '',
+      idnat: row.expand?.idnat?.idnat || '',
+      naturezaDesc: row.expand?.idnat?.descricao || '',
+      idcat: row.expand?.idnat?.expand?.idcat?.idcat || '',
+      categoriaDesc: row.expand?.idnat?.expand?.idcat?.descricao || '',
+      expand: row.expand,
+    }))
   }, [movimentos])
 
+  const handleRowClick = (row: any) => {
+    setFormData({
+      id: row.id,
+      idmov: row.idmov?.toString() || '',
+      ano: row.ano?.toString() || '',
+      mes: row.mes?.toString() || '',
+      dia: row.dia?.toString() || '',
+      valor: row.valor?.toString() || '',
+      historico: row.historico || '',
+      cartao: row.cartao || '',
+      situacao: row.situacao || 'Pendente',
+
+      idforn: row.expand?.idforn?.id || '',
+      idfornNum: row.expand?.idforn?.idforn?.toString() || '',
+      fornName: row.fornecedorNome || '',
+
+      idben: row.expand?.idben?.id || '',
+      idbenNum: row.expand?.idben?.idben?.toString() || '',
+      benName: row.beneficiarioNome || '',
+
+      idmoeda: row.expand?.idmoeda?.id || '',
+      idmoedaNum: row.expand?.idmoeda?.idmoeda?.toString() || '',
+      moedaName: row.expand?.idmoeda?.descricao || '',
+
+      idtipodoc: row.expand?.idtipodoc?.id || '',
+      idtipodocNum: row.expand?.idtipodoc?.idtipodoc?.toString() || '',
+      tipoDocName: row.tipoDocDesc || '',
+
+      idpag: row.expand?.idpag?.id || '',
+      idpagNum: row.expand?.idpag?.idpag?.toString() || '',
+      pagadorName: row.pagadorNome || '',
+
+      idnat: row.expand?.idnat?.id || '',
+      idnatNum: row.expand?.idnat?.idnat?.toString() || '',
+      natName: row.naturezaDesc || '',
+
+      idcat: row.expand?.idnat?.expand?.idcat?.id || '',
+      idcatNum: row.expand?.idnat?.expand?.idcat?.idcat?.toString() || '',
+      catName: row.categoriaDesc || '',
+
+      idobj: '',
+      idobjNum: '',
+      objName: '',
+      objQuantidade: '1',
+      objValor: '',
+    })
+    setSelectedMoveObjId('')
+  }
+
+  const handleNovo = () => {
+    setFormData(defaultForm)
+    setSelectedMoveObjId('')
+  }
+
+  const handleLimpar = () => handleNovo()
+
+  const handleExcluir = async () => {
+    if (!formData.id) return toast.error('Nenhum movimento selecionado')
+    try {
+      await api.movimentos.delete(formData.id)
+      toast.success('Excluído com sucesso')
+      handleNovo()
+    } catch (e) {
+      toast.error('Erro ao excluir')
+    }
+  }
+
+  const handleGravar = async () => {
+    const ano = parseInt(formData.ano)
+    const mes = parseInt(formData.mes)
+    const dia = parseInt(formData.dia)
+    if (isNaN(ano) || ano < 2000 || ano > 2100) return toast.error('Ano inválido (2000-2100)')
+    if (isNaN(mes) || mes < 1 || mes > 12) return toast.error('Mês inválido (1-12)')
+    if (isNaN(dia) || dia < 1 || dia > 31) return toast.error('Dia inválido (1-31)')
+    if (!formData.valor) return toast.error('Valor é obrigatório')
+
+    const payload = {
+      ano,
+      mes,
+      dia,
+      valor: parseFloat(formData.valor),
+      idnat: formData.idnat || null,
+      idforn: formData.idforn || null,
+      idben: formData.idben || null,
+      idpag: formData.idpag || null,
+      idtipodoc: formData.idtipodoc || null,
+      idmoeda: formData.idmoeda || null,
+      historico: formData.historico,
+      cartao: formData.cartao,
+      situacao: formData.situacao,
+      idmov: formData.idmov
+        ? parseInt(formData.idmov.toString())
+        : Math.floor(Math.random() * 1000000),
+    }
+
+    try {
+      if (formData.id) {
+        await api.movimentos.update(formData.id, payload)
+        toast.success('Atualizado com sucesso')
+      } else {
+        const res = await api.movimentos.create(payload)
+        setFormData((p) => ({ ...p, id: res.id, idmov: res.idmov.toString() }))
+        toast.success('Criado com sucesso')
+      }
+      fetchMovimentos()
+    } catch (e) {
+      const fieldErrs = extractFieldErrors(e)
+      toast.error(Object.values(fieldErrs).join(', ') || 'Erro ao gravar')
+    }
+  }
+
+  const handleAddObjeto = async () => {
+    if (!formData.id) return toast.error('Grave o movimento primeiro')
+    if (!formData.idobj) return toast.error('Selecione um objeto')
+    try {
+      await api.moveobjetos.create({
+        idmov: formData.id,
+        idobj: formData.idobj,
+        quantidade: parseFloat(formData.objQuantidade) || 1,
+        valor_unitario: parseFloat(formData.objValor) || 0,
+        idmoveobj: Math.floor(Math.random() * 1000000),
+      })
+      toast.success('Objeto adicionado')
+      setFormData((p) => ({
+        ...p,
+        idobj: '',
+        idobjNum: '',
+        objName: '',
+        objQuantidade: '1',
+        objValor: '',
+      }))
+      fetchMovimentos()
+    } catch (e) {
+      toast.error('Falha ao adicionar objeto')
+    }
+  }
+
+  const handleDeleteObjeto = async () => {
+    if (!selectedMoveObjId) return toast.error('Selecione um objeto para excluir')
+    try {
+      await api.moveobjetos.delete(selectedMoveObjId)
+      toast.success('Objeto removido')
+      setSelectedMoveObjId('')
+      fetchMovimentos()
+    } catch (e) {
+      toast.error('Falha ao remover objeto')
+    }
+  }
+
   return (
-    <div className="flex flex-col h-full gap-2">
-      {/* Top Section: Form + Object Box */}
+    <div className="flex flex-col h-full gap-2 relative">
       <div className="flex gap-2 shrink-0">
-        {/* Left Side: Main Form Fields */}
         <div className="flex flex-col gap-2 flex-1 pt-1">
-          {/* Linha 1 */}
           <div className="flex gap-2">
             <YgFieldGroup>
               <YgLabel>ID</YgLabel>
               <YgInput
                 style={{ width: w(7) }}
-                value={formData.id}
+                value={formData.idmov}
                 readOnly
                 className="bg-gray-100"
               />
@@ -263,12 +496,11 @@ export default function Index() {
             </YgFieldGroup>
           </div>
 
-          {/* Linha 2 */}
           <div className="flex gap-2">
             <YgFieldGroup>
               <YgLabel>Fornecedor</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(6) }} value={formData.idforn} readOnly />
+                <YgInput style={{ width: w(6) }} value={formData.idfornNum} readOnly />
                 <YgButton onClick={() => handleLookup('fornecedor')}>?</YgButton>
                 <YgInput
                   style={{ width: w(30) }}
@@ -280,12 +512,11 @@ export default function Index() {
             </YgFieldGroup>
           </div>
 
-          {/* Linha 3 */}
           <div className="flex gap-2">
             <YgFieldGroup>
               <YgLabel>Beneficiário</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(4) }} value={formData.idben} readOnly />
+                <YgInput style={{ width: w(4) }} value={formData.idbenNum} readOnly />
                 <YgButton onClick={() => handleLookup('beneficiario')}>?</YgButton>
                 <YgInput
                   style={{ width: w(10) }}
@@ -297,12 +528,11 @@ export default function Index() {
             </YgFieldGroup>
           </div>
 
-          {/* Linha 4 */}
           <div className="flex gap-2">
             <YgFieldGroup>
               <YgLabel>Moeda</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(3) }} value={formData.idmoeda} readOnly />
+                <YgInput style={{ width: w(3) }} value={formData.idmoedaNum} readOnly />
                 <YgButton onClick={() => handleLookup('moeda')}>?</YgButton>
                 <YgInput
                   style={{ width: w(10) }}
@@ -330,12 +560,11 @@ export default function Index() {
             </YgFieldGroup>
           </div>
 
-          {/* Linha 5 */}
           <div className="flex gap-2">
             <YgFieldGroup>
               <YgLabel>Tipo de Documento</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(3) }} value={formData.idtipodoc} readOnly />
+                <YgInput style={{ width: w(3) }} value={formData.idtipodocNum} readOnly />
                 <YgButton onClick={() => handleLookup('tipodoc')}>?</YgButton>
                 <YgInput
                   style={{ width: w(15) }}
@@ -348,7 +577,7 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>Pagador</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(3) }} value={formData.idpag} readOnly />
+                <YgInput style={{ width: w(3) }} value={formData.idpagNum} readOnly />
                 <YgButton onClick={() => handleLookup('pagador')}>?</YgButton>
                 <YgInput
                   style={{ width: w(15) }}
@@ -368,12 +597,11 @@ export default function Index() {
             </YgFieldGroup>
           </div>
 
-          {/* Linha 6 */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-end">
             <YgFieldGroup>
               <YgLabel>Categoria</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(4) }} value={formData.idcat} readOnly />
+                <YgInput style={{ width: w(4) }} value={formData.idcatNum} readOnly />
                 <YgButton onClick={() => handleLookup('categoria')}>?</YgButton>
                 <YgInput
                   style={{ width: w(15) }}
@@ -386,7 +614,7 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>Natureza</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(4) }} value={formData.idnat} readOnly />
+                <YgInput style={{ width: w(4) }} value={formData.idnatNum} readOnly />
                 <YgButton onClick={() => handleLookup('natureza')}>?</YgButton>
                 <YgInput
                   style={{ width: w(15) }}
@@ -396,30 +624,70 @@ export default function Index() {
                 />
               </div>
             </YgFieldGroup>
+            <YgFieldGroup className="flex-1">
+              <YgLabel>Histórico</YgLabel>
+              <YgInput
+                className="w-full"
+                value={formData.historico}
+                onChange={(e) => setFormData({ ...formData, historico: e.target.value })}
+              />
+            </YgFieldGroup>
           </div>
         </div>
 
-        {/* Right Side: Object Box */}
         <div className="w-[30%] border border-yg-dark flex flex-col p-[2px] bg-white h-[200px]">
           <div className="p-1 pb-2">
             <YgFieldGroup>
               <YgLabel>Objeto</YgLabel>
               <div className="flex mb-1">
-                <YgInput style={{ width: w(4) }} value={formData.idobj} readOnly />
+                <YgInput style={{ width: w(4) }} value={formData.idobjNum} readOnly />
                 <YgButton onClick={() => handleLookup('objeto')}>?</YgButton>
               </div>
-              <YgInput className="w-full bg-gray-50" value={formData.objName} readOnly />
+              <YgInput className="w-full bg-gray-50 mb-1" value={formData.objName} readOnly />
+              <div className="flex gap-1">
+                <YgInput
+                  style={{ width: w(4) }}
+                  placeholder="Qtd"
+                  value={formData.objQuantidade}
+                  onChange={(e) => setFormData({ ...formData, objQuantidade: e.target.value })}
+                />
+                <YgInput
+                  className="flex-1"
+                  placeholder="Valor Un"
+                  value={formData.objValor}
+                  onChange={(e) => setFormData({ ...formData, objValor: e.target.value })}
+                />
+              </div>
             </YgFieldGroup>
 
             <div className="flex gap-1 mt-2 mb-2 bg-gray-200 p-[2px] justify-start">
-              {['N', 'A', 'E', 'D'].map((action) => (
-                <button
-                  key={action}
-                  className="h-[20px] w-[24px] bg-gray-300 border border-gray-500 text-black text-[10px] font-bold hover:bg-gray-400"
-                >
-                  {action}
-                </button>
-              ))}
+              <button
+                onClick={() =>
+                  setFormData((p) => ({
+                    ...p,
+                    idobj: '',
+                    idobjNum: '',
+                    objName: '',
+                    objQuantidade: '1',
+                    objValor: '',
+                  }))
+                }
+                className="h-[20px] w-[24px] bg-gray-300 border border-gray-500 text-black text-[10px] font-bold hover:bg-gray-400"
+              >
+                N
+              </button>
+              <button
+                onClick={handleAddObjeto}
+                className="h-[20px] w-[24px] bg-gray-300 border border-gray-500 text-black text-[10px] font-bold hover:bg-gray-400"
+              >
+                A
+              </button>
+              <button
+                onClick={handleDeleteObjeto}
+                className="h-[20px] w-[24px] bg-gray-300 border border-gray-500 text-black text-[10px] font-bold hover:bg-gray-400"
+              >
+                E
+              </button>
             </div>
           </div>
 
@@ -428,41 +696,37 @@ export default function Index() {
               <thead className="bg-yg-dark text-white sticky top-0">
                 <tr>
                   <th className="font-bold p-1 border-r border-white/20">IdObj</th>
-                  <th className="font-bold p-1">NObj</th>
+                  <th className="font-bold p-1 border-r border-white/20">NObj</th>
+                  <th className="font-bold p-1 border-r border-white/20">Qtd</th>
+                  <th className="font-bold p-1">Vlr</th>
                 </tr>
               </thead>
               <tbody>
                 {moveobjetos
-                  .filter((mo) => mo.idmov.toString() === formData.id)
-                  .map((mo) => {
-                    const obj = db.objetos.find((o) => o.idobj === mo.idobj)
-                    return (
-                      <tr key={mo.idmoveobj} className="border-b border-gray-200 hover:bg-sky-50">
-                        <td className="p-1 border-r">{mo.idobj}</td>
-                        <td className="p-1 truncate max-w-[120px]">{obj?.descricao}</td>
-                      </tr>
-                    )
-                  })}
-                {/* Empty rows to match design */}
-                <tr className="border-b border-gray-200 h-[22px]">
-                  <td className="border-r"></td>
-                  <td></td>
-                </tr>
-                <tr className="border-b border-gray-200 h-[22px]">
-                  <td className="border-r"></td>
-                  <td></td>
-                </tr>
-                <tr className="border-b border-gray-200 h-[22px]">
-                  <td className="border-r"></td>
-                  <td></td>
-                </tr>
+                  .filter((mo) => mo.idmov === formData.id)
+                  .map((mo) => (
+                    <tr
+                      key={mo.id}
+                      onClick={() => setSelectedMoveObjId(mo.id)}
+                      className={cn(
+                        'border-b border-gray-200 hover:bg-sky-50 cursor-pointer',
+                        selectedMoveObjId === mo.id && 'bg-blue-200',
+                      )}
+                    >
+                      <td className="p-1 border-r">{mo.expand?.idobj?.idobj}</td>
+                      <td className="p-1 truncate max-w-[120px] border-r">
+                        {mo.expand?.idobj?.descricao}
+                      </td>
+                      <td className="p-1 border-r text-right">{mo.quantidade}</td>
+                      <td className="p-1 text-right">{mo.valor_unitario}</td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
         </div>
       </div>
 
-      {/* Bottom Section: Main Data Grid */}
       <div className="flex-1 overflow-auto yg-scrollbar border border-gray-400 bg-white shadow-inner mt-2">
         <table className="text-[11px] text-left border-collapse whitespace-nowrap min-w-max">
           <thead className="bg-yg-dark text-white sticky top-0 z-10">
@@ -497,37 +761,37 @@ export default function Index() {
             </tr>
           </thead>
           <tbody>
-            {v1Movimentos.map((row, i) => (
+            {v1Movimentos.map((row) => (
               <tr
-                key={row.idmov}
+                key={row.id}
+                onClick={() => handleRowClick(row)}
                 className="border-b border-gray-200 hover:bg-sky-100 cursor-pointer"
               >
                 <td className="p-1 px-2 border-r">{row.idmov}</td>
                 <td className="p-1 px-2 border-r">{row.ano}</td>
-                <td className="p-1 px-2 border-r">{row.mes.toString().padStart(2, '0')}</td>
-                <td className="p-1 px-2 border-r">{row.dia.toString().padStart(2, '0')}</td>
-                <td className="p-1 px-2 border-r">{row.idforn || ''}</td>
+                <td className="p-1 px-2 border-r">{(row.mes || '').toString().padStart(2, '0')}</td>
+                <td className="p-1 px-2 border-r">{(row.dia || '').toString().padStart(2, '0')}</td>
+                <td className="p-1 px-2 border-r">{row.idforn}</td>
                 <td className="p-1 px-2 border-r">{row.fornecedorNome}</td>
-                <td className="p-1 px-2 border-r">{row.idben || ''}</td>
+                <td className="p-1 px-2 border-r">{row.idben}</td>
                 <td className="p-1 px-2 border-r">{row.beneficiarioNome}</td>
-                <td className="p-1 px-2 border-r">{row.idmoeda || ''}</td>
+                <td className="p-1 px-2 border-r">{row.idmoeda}</td>
                 <td className="p-1 px-2 border-r">{row.moedaSimbolo}</td>
-                <td className="p-1 px-2 border-r text-right">{row.valor.toFixed(2)}</td>
-                <td className="p-1 px-2 border-r">{row.cartao || ''}</td>
-                <td className="p-1 px-2 border-r">{row.idtipodoc || ''}</td>
-                <td className="p-1 px-2 border-r">{row.tipoDocDesc}</td>
-                <td className="p-1 px-2 border-r">{row.idpag || ''}</td>
-                <td className="p-1 px-2 border-r">{row.pagadorNome}</td>
-                <td className="p-1 px-2 border-r">{row.situacao || ''}</td>
-                <td className="p-1 px-2 border-r">
-                  {row.idnat ? db.naturezas.find((n) => n.idnat === row.idnat)?.idcat : ''}
+                <td className="p-1 px-2 border-r text-right">
+                  {Number(row.valor || 0).toFixed(2)}
                 </td>
+                <td className="p-1 px-2 border-r">{row.cartao}</td>
+                <td className="p-1 px-2 border-r">{row.idtipodoc}</td>
+                <td className="p-1 px-2 border-r">{row.tipoDocDesc}</td>
+                <td className="p-1 px-2 border-r">{row.idpag}</td>
+                <td className="p-1 px-2 border-r">{row.pagadorNome}</td>
+                <td className="p-1 px-2 border-r">{row.situacao}</td>
+                <td className="p-1 px-2 border-r">{row.idcat}</td>
                 <td className="p-1 px-2 border-r">{row.categoriaDesc}</td>
-                <td className="p-1 px-2 border-r">{row.idnat || ''}</td>
+                <td className="p-1 px-2 border-r">{row.idnat}</td>
                 <td className="p-1 px-2 border-r">{row.naturezaDesc}</td>
               </tr>
             ))}
-            {/* Fill empty rows to make it look like a classic grid */}
             {[...Array(10)].map((_, i) => (
               <tr key={`empty-${i}`} className="border-b border-gray-200 h-[24px]">
                 {[...Array(21)].map((_, j) => (
@@ -539,7 +803,28 @@ export default function Index() {
         </table>
       </div>
 
-      {/* Lookup Modal */}
+      <footer className="h-10 bg-yg-dark shrink-0 flex items-center px-1 gap-1 -mx-2 -mb-2 mt-2">
+        {[
+          { label: 'Novo', action: handleNovo },
+          { label: 'Gravar', action: handleGravar },
+          { label: 'Excluir', action: handleExcluir },
+          { label: 'Limpar', action: handleLimpar },
+          {
+            label: 'Relatório',
+            action: () => toast.info('Relatório não implementado nesta versão.'),
+          },
+          { label: 'Análise', action: () => toast.info('Análise não implementada nesta versão.') },
+        ].map((btn) => (
+          <button
+            key={btn.label}
+            onClick={btn.action}
+            className="flex-1 h-full flex items-center justify-center text-yg-gold font-bold text-[12px] border-r border-white/20 last:border-r-0 hover:bg-white/10 transition-colors"
+          >
+            {btn.label}
+          </button>
+        ))}
+      </footer>
+
       <Dialog
         open={lookup.isOpen}
         onOpenChange={(open) => !open && setLookup({ isOpen: false, type: null })}
@@ -568,7 +853,7 @@ export default function Index() {
                     className="hover:bg-blue-100 cursor-pointer"
                     onClick={() => handleSelect(row)}
                   >
-                    {renderModalRow(row, i)}
+                    {renderModalRow(row)}
                   </tr>
                 ))}
                 {lookupData.data.length === 0 && (
