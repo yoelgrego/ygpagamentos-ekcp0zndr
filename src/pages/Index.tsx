@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import useRealtime from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
+import { useResizableColumns } from '@/hooks/use-resizable-columns'
 
 const w = (chars: number) => `${chars * 8 + 12}px`
 
@@ -61,6 +62,34 @@ const defaultForm = {
   objValor: '',
 }
 
+const GRID_COL_DEFS = [
+  'ID',
+  'Ano',
+  'Mês',
+  'Dia',
+  'IdFornece',
+  'Fornecedor',
+  'IdBenef',
+  'Beneficiario',
+  'IdMoeda',
+  'Moeda',
+  'Valor',
+  'Cartão',
+  'IdTipo',
+  'TipoDoc',
+  'IdPaga',
+  'Pagador',
+  'Situação',
+  'IdCat',
+  'Categoria',
+  'IdNat',
+  'Natureza',
+]
+
+const INITIAL_COL_WIDTHS = [
+  50, 45, 40, 40, 60, 120, 55, 100, 55, 60, 80, 55, 50, 70, 50, 80, 70, 50, 90, 50, 90,
+]
+
 export default function Index() {
   const {
     movimentos,
@@ -96,6 +125,8 @@ export default function Index() {
     isOpen: false,
     type: null,
   })
+
+  const { widths: colWidths, onResizeStart } = useResizableColumns(INITIAL_COL_WIDTHS)
 
   const handleLookup = (type: LookupType) => {
     setLookup({ isOpen: true, type })
@@ -466,8 +497,7 @@ export default function Index() {
               <YgInput
                 style={{ width: w(7) }}
                 value={formData.idmov}
-                readOnly
-                className="bg-gray-100"
+                onChange={(e) => setFormData({ ...formData, idmov: e.target.value })}
               />
             </YgFieldGroup>
             <YgFieldGroup>
@@ -545,7 +575,7 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>Valor</YgLabel>
               <YgInput
-                style={{ width: w(8) }}
+                style={{ width: w(16) }}
                 value={formData.valor}
                 onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
               />
@@ -624,18 +654,10 @@ export default function Index() {
                 />
               </div>
             </YgFieldGroup>
-            <YgFieldGroup className="flex-1">
-              <YgLabel>Histórico</YgLabel>
-              <YgInput
-                className="w-full"
-                value={formData.historico}
-                onChange={(e) => setFormData({ ...formData, historico: e.target.value })}
-              />
-            </YgFieldGroup>
           </div>
         </div>
 
-        <div className="w-[30%] border border-yg-dark flex flex-col p-[2px] bg-white h-[200px]">
+        <div className="w-[30%] border border-yg-dark flex flex-col p-[2px] bg-white self-start">
           <div className="p-1 pb-2">
             <YgFieldGroup>
               <YgLabel>Objeto</YgLabel>
@@ -691,14 +713,12 @@ export default function Index() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto yg-scrollbar border-t border-yg-dark">
+          <div className="overflow-y-auto yg-scrollbar border-t border-yg-dark h-[68px]">
             <table className="w-full text-[11px] text-left border-collapse">
               <thead className="bg-yg-dark text-white sticky top-0">
                 <tr>
                   <th className="font-bold p-1 border-r border-white/20">IdObj</th>
-                  <th className="font-bold p-1 border-r border-white/20">NObj</th>
-                  <th className="font-bold p-1 border-r border-white/20">Qtd</th>
-                  <th className="font-bold p-1">Vlr</th>
+                  <th className="font-bold p-1">NObj</th>
                 </tr>
               </thead>
               <tbody>
@@ -714,11 +734,7 @@ export default function Index() {
                       )}
                     >
                       <td className="p-1 border-r">{mo.expand?.idobj?.idobj}</td>
-                      <td className="p-1 truncate max-w-[120px] border-r">
-                        {mo.expand?.idobj?.descricao}
-                      </td>
-                      <td className="p-1 border-r text-right">{mo.quantidade}</td>
-                      <td className="p-1 text-right">{mo.valor_unitario}</td>
+                      <td className="p-1 truncate">{mo.expand?.idobj?.descricao}</td>
                     </tr>
                   ))}
               </tbody>
@@ -728,74 +744,91 @@ export default function Index() {
       </div>
 
       <div className="flex-1 overflow-auto yg-scrollbar border border-gray-400 bg-white shadow-inner mt-2">
-        <table className="text-[11px] text-left border-collapse whitespace-nowrap min-w-max">
-          <thead className="bg-yg-dark text-white sticky top-0 z-10">
+        <table
+          className="text-[11px] text-left border-collapse"
+          style={{ tableLayout: 'fixed', width: colWidths.reduce((a, b) => a + b, 0) }}
+        >
+          <colgroup>
+            {colWidths.map((cw, i) => (
+              <col key={i} style={{ width: cw }} />
+            ))}
+          </colgroup>
+          <thead className="bg-yg-dark text-white sticky top-0 z-20">
             <tr>
-              {[
-                'ID',
-                'Ano',
-                'Mês',
-                'Dia',
-                'IdFornece',
-                'Fornecedor',
-                'IdBenef',
-                'Beneficiario',
-                'IdMoeda',
-                'Moeda',
-                'Valor',
-                'Cartão',
-                'IdTipo',
-                'TipoDoc',
-                'IdPaga',
-                'Pagador',
-                'Situação',
-                'IdCat',
-                'Categoria',
-                'IdNat',
-                'Natureza',
-              ].map((col) => (
-                <th key={col} className="font-bold p-1 px-2 border-r border-white/20">
-                  {col}
+              {GRID_COL_DEFS.map((col, i) => (
+                <th
+                  key={col}
+                  className={cn(
+                    'font-bold p-1 px-2 border-r border-white/20 relative',
+                    i === 0 && 'sticky left-0 z-30 bg-yg-dark',
+                  )}
+                >
+                  <span className="block overflow-hidden text-ellipsis whitespace-nowrap">
+                    {col}
+                  </span>
+                  {i < GRID_COL_DEFS.length - 1 && (
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-white/40"
+                      onMouseDown={onResizeStart(i)}
+                    />
+                  )}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {v1Movimentos.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() => handleRowClick(row)}
-                className="border-b border-gray-200 hover:bg-sky-100 cursor-pointer"
-              >
-                <td className="p-1 px-2 border-r">{row.idmov}</td>
-                <td className="p-1 px-2 border-r">{row.ano}</td>
-                <td className="p-1 px-2 border-r">{(row.mes || '').toString().padStart(2, '0')}</td>
-                <td className="p-1 px-2 border-r">{(row.dia || '').toString().padStart(2, '0')}</td>
-                <td className="p-1 px-2 border-r">{row.idforn}</td>
-                <td className="p-1 px-2 border-r">{row.fornecedorNome}</td>
-                <td className="p-1 px-2 border-r">{row.idben}</td>
-                <td className="p-1 px-2 border-r">{row.beneficiarioNome}</td>
-                <td className="p-1 px-2 border-r">{row.idmoeda}</td>
-                <td className="p-1 px-2 border-r">{row.moedaSimbolo}</td>
-                <td className="p-1 px-2 border-r text-right">
-                  {Number(row.valor || 0).toFixed(2)}
-                </td>
-                <td className="p-1 px-2 border-r">{row.cartao}</td>
-                <td className="p-1 px-2 border-r">{row.idtipodoc}</td>
-                <td className="p-1 px-2 border-r">{row.tipoDocDesc}</td>
-                <td className="p-1 px-2 border-r">{row.idpag}</td>
-                <td className="p-1 px-2 border-r">{row.pagadorNome}</td>
-                <td className="p-1 px-2 border-r">{row.situacao}</td>
-                <td className="p-1 px-2 border-r">{row.idcat}</td>
-                <td className="p-1 px-2 border-r">{row.categoriaDesc}</td>
-                <td className="p-1 px-2 border-r">{row.idnat}</td>
-                <td className="p-1 px-2 border-r">{row.naturezaDesc}</td>
-              </tr>
-            ))}
+            {v1Movimentos.map((row) => {
+              const cells = [
+                row.idmov,
+                row.ano,
+                (row.mes || '').toString().padStart(2, '0'),
+                (row.dia || '').toString().padStart(2, '0'),
+                row.idforn,
+                row.fornecedorNome,
+                row.idben,
+                row.beneficiarioNome,
+                row.idmoeda,
+                row.moedaSimbolo,
+                Number(row.valor || 0).toFixed(2),
+                row.cartao,
+                row.idtipodoc,
+                row.tipoDocDesc,
+                row.idpag,
+                row.pagadorNome,
+                row.situacao,
+                row.idcat,
+                row.categoriaDesc,
+                row.idnat,
+                row.naturezaDesc,
+              ]
+              return (
+                <tr
+                  key={row.id}
+                  onClick={() => handleRowClick(row)}
+                  className="group border-b border-gray-200 hover:bg-sky-100 cursor-pointer"
+                >
+                  {cells.map((cell, i) => (
+                    <td
+                      key={i}
+                      className={cn(
+                        'p-1 px-2 border-r overflow-hidden text-ellipsis whitespace-nowrap',
+                        i === 0 && 'sticky left-0 z-10 bg-white group-hover:bg-sky-100',
+                        i === 10 && 'text-right',
+                      )}
+                    >
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
             {[...Array(10)].map((_, i) => (
               <tr key={`empty-${i}`} className="border-b border-gray-200 h-[24px]">
                 {[...Array(21)].map((_, j) => (
-                  <td key={j} className="border-r"></td>
+                  <td
+                    key={j}
+                    className={cn('border-r', j === 0 && 'sticky left-0 z-10 bg-white')}
+                  ></td>
                 ))}
               </tr>
             ))}
