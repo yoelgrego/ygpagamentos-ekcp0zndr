@@ -714,7 +714,14 @@ export default function Index() {
           </div>
 
           <div className="overflow-y-auto yg-scrollbar border-t border-yg-dark h-[68px]">
-            <table className="w-full text-[11px] text-left border-collapse">
+            <table
+              className="w-full text-[11px] text-left border-collapse"
+              style={{ tableLayout: 'fixed' }}
+            >
+              <colgroup>
+                <col style={{ width: '16.67%' }} />
+                <col style={{ width: '83.33%' }} />
+              </colgroup>
               <thead className="bg-yg-dark text-white sticky top-0">
                 <tr>
                   <th className="font-bold p-1 border-r border-white/20">IdObj</th>
@@ -733,7 +740,7 @@ export default function Index() {
                         selectedMoveObjId === mo.id && 'bg-blue-200',
                       )}
                     >
-                      <td className="p-1 border-r">{mo.expand?.idobj?.idobj}</td>
+                      <td className="p-1 border-r truncate">{mo.expand?.idobj?.idobj}</td>
                       <td className="p-1 truncate">{mo.expand?.idobj?.descricao}</td>
                     </tr>
                   ))}
