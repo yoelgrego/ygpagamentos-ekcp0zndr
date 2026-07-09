@@ -126,7 +126,11 @@ export default function Index() {
     type: null,
   })
 
-  const { widths: colWidths, onResizeStart } = useResizableColumns(INITIAL_COL_WIDTHS)
+  const { colWidths, onResizeStart } = useResizableColumns({
+    initialWidths: INITIAL_COL_WIDTHS,
+    minWidth: 40,
+    maxWidth: 600,
+  })
 
   const handleLookup = (type: LookupType) => {
     setLookup({ isOpen: true, type })
@@ -747,7 +751,10 @@ export default function Index() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto yg-scrollbar border border-gray-400 bg-white shadow-inner mt-2">
+      <div
+        className="flex-1 min-h-0 overflow-auto yg-scrollbar border border-gray-400 bg-white shadow-inner mt-2"
+        style={{ touchAction: 'pan-y' }}
+      >
         <table
           className="text-[11px] text-left border-collapse"
           style={{ tableLayout: 'fixed', width: colWidths.reduce((a, b) => a + b, 0) }}
@@ -772,8 +779,9 @@ export default function Index() {
                   </span>
                   {i < GRID_COL_DEFS.length - 1 && (
                     <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-white/40"
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-white/40 active:bg-white/70 transition-colors duration-150 touch-none"
                       onMouseDown={onResizeStart(i)}
+                      onTouchStart={onResizeStart(i)}
                     />
                   )}
                 </th>

@@ -66,11 +66,11 @@ export function ObjetoGrid() {
                   </span>
                   {i < OBJETO_COL_DEFS.length - 1 && (
                     <div
-                      className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-white/50 active:bg-white/70 transition-colors duration-150 touch-none"
+                      className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-white/50 active:bg-white/70 transition-colors duration-150 touch-none z-40"
                       onMouseDown={onResizeStart(i)}
                       onTouchStart={onResizeStart(i)}
                     />
-                  )}
+                  )}{' '}
                 </th>
               ))}
             </tr>
