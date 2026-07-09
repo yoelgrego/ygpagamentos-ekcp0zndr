@@ -20,7 +20,6 @@ type LookupType =
   | 'pagador'
   | 'categoria'
   | 'natureza'
-  | 'objeto'
   | null
 
 const defaultForm = {
@@ -54,12 +53,6 @@ const defaultForm = {
   idnat: '',
   idnatNum: '',
   natName: '',
-
-  idobj: '',
-  idobjNum: '',
-  objName: '',
-  objQuantidade: '1',
-  objValor: '',
 }
 
 const GRID_COL_DEFS = [
@@ -93,7 +86,6 @@ const INITIAL_COL_WIDTHS = [
 export default function Index() {
   const {
     movimentos,
-    moveobjetos,
     fornecedores,
     beneficiarios,
     moedas,
@@ -101,7 +93,6 @@ export default function Index() {
     pagadores,
     categorias,
     naturezas,
-    objetos,
     fetchLookups,
     fetchMovimentos,
   } = useAppStore()
@@ -119,7 +110,6 @@ export default function Index() {
   })
 
   const [formData, setFormData] = useState(defaultForm)
-  const [selectedMoveObjId, setSelectedMoveObjId] = useState('')
 
   const [lookup, setLookup] = useState<{ isOpen: boolean; type: LookupType }>({
     isOpen: false,
@@ -197,14 +187,6 @@ export default function Index() {
           natName: record.descricao,
         }))
         break
-      case 'objeto':
-        setFormData((p) => ({
-          ...p,
-          idobj: record.id,
-          idobjNum: record.idobj?.toString() || '',
-          objName: record.descricao,
-        }))
-        break
     }
     setLookup({ isOpen: false, type: null })
   }
@@ -228,8 +210,6 @@ export default function Index() {
           headers: ['ID', 'Descrição'],
           data: formData.idcat ? naturezas.filter((n) => n.idcat === formData.idcat) : naturezas,
         }
-      case 'objeto':
-        return { headers: ['ID', 'Descrição', 'Tipo'], data: objetos }
       default:
         return { headers: [], data: [] }
     }
@@ -243,7 +223,6 @@ export default function Index() {
     pagadores,
     categorias,
     naturezas,
-    objetos,
   ])
 
   const renderModalRow = (row: any) => {
@@ -298,14 +277,6 @@ export default function Index() {
           <>
             <td className="p-1 border">{row.idnat}</td>
             <td className="p-1 border">{row.descricao}</td>
-          </>
-        )
-      case 'objeto':
-        return (
-          <>
-            <td className="p-1 border">{row.idobj}</td>
-            <td className="p-1 border">{row.descricao}</td>
-            <td className="p-1 border">{row.tipo}</td>
           </>
         )
       default:
@@ -379,19 +350,11 @@ export default function Index() {
       idcat: row.expand?.idnat?.expand?.idcat?.id || '',
       idcatNum: row.expand?.idnat?.expand?.idcat?.idcat?.toString() || '',
       catName: row.categoriaDesc || '',
-
-      idobj: '',
-      idobjNum: '',
-      objName: '',
-      objQuantidade: '1',
-      objValor: '',
     })
-    setSelectedMoveObjId('')
   }
 
   const handleNovo = () => {
     setFormData(defaultForm)
-    setSelectedMoveObjId('')
   }
 
   const handleLimpar = () => handleNovo()
@@ -447,44 +410,6 @@ export default function Index() {
     } catch (e) {
       const fieldErrs = extractFieldErrors(e)
       toast.error(Object.values(fieldErrs).join(', ') || 'Erro ao gravar')
-    }
-  }
-
-  const handleAddObjeto = async () => {
-    if (!formData.id) return toast.error('Grave o movimento primeiro')
-    if (!formData.idobj) return toast.error('Selecione um objeto')
-    try {
-      await api.moveobjetos.create({
-        idmov: formData.id,
-        idobj: formData.idobj,
-        quantidade: parseFloat(formData.objQuantidade) || 1,
-        valor_unitario: parseFloat(formData.objValor) || 0,
-        idmoveobj: Math.floor(Math.random() * 1000000),
-      })
-      toast.success('Objeto adicionado')
-      setFormData((p) => ({
-        ...p,
-        idobj: '',
-        idobjNum: '',
-        objName: '',
-        objQuantidade: '1',
-        objValor: '',
-      }))
-      fetchMovimentos()
-    } catch (e) {
-      toast.error('Falha ao adicionar objeto')
-    }
-  }
-
-  const handleDeleteObjeto = async () => {
-    if (!selectedMoveObjId) return toast.error('Selecione um objeto para excluir')
-    try {
-      await api.moveobjetos.delete(selectedMoveObjId)
-      toast.success('Objeto removido')
-      setSelectedMoveObjId('')
-      fetchMovimentos()
-    } catch (e) {
-      toast.error('Falha ao remover objeto')
     }
   }
 
@@ -655,98 +580,6 @@ export default function Index() {
                 />
               </div>
             </YgFieldGroup>
-          </div>
-        </div>
-
-        <div className="w-[30%] border border-yg-dark flex flex-col p-[2px] bg-white self-start">
-          <div className="p-1 pb-2">
-            <YgFieldGroup>
-              <YgLabel>Objeto</YgLabel>
-              <div className="flex mb-1">
-                <YgInput style={{ width: w(4) }} value={formData.idobjNum} readOnly />
-                <YgButton onClick={() => handleLookup('objeto')}>?</YgButton>
-              </div>
-              <YgInput className="w-full bg-gray-50 mb-1" value={formData.objName} readOnly />
-              <div className="flex gap-1">
-                <YgInput
-                  style={{ width: w(4) }}
-                  placeholder="Qtd"
-                  value={formData.objQuantidade}
-                  onChange={(e) => setFormData({ ...formData, objQuantidade: e.target.value })}
-                />
-                <YgInput
-                  className="flex-1"
-                  placeholder="Valor Un"
-                  value={formData.objValor}
-                  onChange={(e) => setFormData({ ...formData, objValor: e.target.value })}
-                />
-              </div>
-            </YgFieldGroup>
-
-            <div className="flex gap-1 mt-2 mb-2 bg-gray-200 p-[2px] justify-start">
-              <button
-                onClick={() =>
-                  setFormData((p) => ({
-                    ...p,
-                    idobj: '',
-                    idobjNum: '',
-                    objName: '',
-                    objQuantidade: '1',
-                    objValor: '',
-                  }))
-                }
-                className="h-[20px] w-[24px] bg-gray-300 border border-gray-500 text-black text-[10px] font-bold hover:bg-gray-400"
-              >
-                N
-              </button>
-              <button
-                onClick={handleAddObjeto}
-                className="h-[20px] w-[24px] bg-gray-300 border border-gray-500 text-black text-[10px] font-bold hover:bg-gray-400"
-              >
-                A
-              </button>
-              <button
-                onClick={handleDeleteObjeto}
-                className="h-[20px] w-[24px] bg-gray-300 border border-gray-500 text-black text-[10px] font-bold hover:bg-gray-400"
-              >
-                E
-              </button>
-            </div>
-          </div>
-
-          <div className="overflow-y-auto yg-scrollbar border-t border-yg-dark h-[72px]">
-            <table
-              className="w-full text-[11px] text-left border-collapse"
-              style={{ tableLayout: 'fixed' }}
-            >
-              <colgroup>
-                <col style={{ width: '33.33%' }} />
-                <col style={{ width: '66.67%' }} />
-              </colgroup>
-              <thead className="bg-yg-dark text-white sticky top-0">
-                <tr>
-                  <th className="font-bold p-1 border-r border-white/20">Id</th>
-                  <th className="font-bold p-1">NObj</th>{' '}
-                </tr>
-              </thead>
-              <tbody>
-                {moveobjetos
-                  .filter((mo) => mo.idmov === formData.id)
-                  .map((mo) => (
-                    <tr
-                      key={mo.id}
-                      onClick={() => setSelectedMoveObjId(mo.id)}
-                      className={cn(
-                        'border-b border-gray-200 hover:bg-sky-50 cursor-pointer',
-                        selectedMoveObjId === mo.id && 'bg-blue-200',
-                      )}
-                    >
-                      <td className="p-1 border-r truncate">{mo.expand?.idobj?.idobj}</td>
-                      <td className="p-1 truncate">{mo.expand?.idobj?.descricao}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
           </div>
         </div>
       </div>

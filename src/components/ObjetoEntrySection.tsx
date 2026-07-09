@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { YgLabel, YgInput, YgButton, YgFieldGroup } from '@/components/yg-ui'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAppStore } from '@/stores/use-app-store'
+import { useResizableColumns } from '@/hooks/use-resizable-columns'
 import { Plus, Trash2, X } from 'lucide-react'
 
 interface PendingObj {
@@ -9,33 +10,38 @@ interface PendingObj {
   idobjNum: number
   nobj: string
   descr: string
-  quantidade: string
-  valorUnitario: string
 }
 
 const w = (chars: number) => `${chars * 8 + 12}px`
+
+const OBJETO_COL_DEFS = ['Id', 'NObj', 'Descr']
+const INITIAL_OBJ_WIDTHS = [50, 120, 300]
 
 export function ObjetoEntrySection() {
   const { objetos } = useAppStore()
   const [items, setItems] = useState<PendingObj[]>([])
   const [selectedObj, setSelectedObj] = useState<PendingObj | null>(null)
-  const [quantidade, setQuantidade] = useState('1')
-  const [valorUnitario, setValorUnitario] = useState('')
   const [lookupOpen, setLookupOpen] = useState(false)
+
+  const { colWidths, onResizeStart } = useResizableColumns({
+    initialWidths: INITIAL_OBJ_WIDTHS,
+    minWidth: 40,
+    maxWidth: 600,
+  })
 
   const handleAdd = () => {
     if (!selectedObj) return
-    setItems((prev) => [...prev, { ...selectedObj, quantidade, valorUnitario }])
+    setItems((prev) => [...prev, { ...selectedObj }])
     setSelectedObj(null)
-    setQuantidade('1')
-    setValorUnitario('')
+  }
+
+  const handleNovo = () => {
+    setSelectedObj(null)
   }
 
   const handleClear = () => {
     setItems([])
     setSelectedObj(null)
-    setQuantidade('1')
-    setValorUnitario('')
   }
 
   const handleRemoveItem = (index: number) => {
@@ -48,8 +54,6 @@ export function ObjetoEntrySection() {
       idobjNum: row.idobj,
       nobj: row.nobj,
       descr: row.descr || '',
-      quantidade: '',
-      valorUnitario: '',
     })
     setLookupOpen(false)
   }
@@ -74,23 +78,13 @@ export function ObjetoEntrySection() {
             />
           </div>
         </YgFieldGroup>
-        <YgFieldGroup>
-          <YgLabel>Quantidade</YgLabel>
-          <YgInput
-            style={{ width: w(6) }}
-            value={quantidade}
-            onChange={(e) => setQuantidade(e.target.value)}
-          />
-        </YgFieldGroup>
-        <YgFieldGroup>
-          <YgLabel>Valor Unitário</YgLabel>
-          <YgInput
-            style={{ width: w(8) }}
-            value={valorUnitario}
-            onChange={(e) => setValorUnitario(e.target.value)}
-          />
-        </YgFieldGroup>
         <div className="flex gap-1 pb-[1px]">
+          <button
+            onClick={handleNovo}
+            className="h-[22px] px-2 bg-gray-300 border border-gray-500 text-black text-[11px] font-bold flex items-center gap-1 hover:bg-gray-400 rounded-none"
+          >
+            Novo
+          </button>
           <button
             onClick={handleAdd}
             className="h-[22px] px-2 bg-yg-dark text-white text-[11px] font-bold flex items-center gap-1 hover:bg-blue-800 rounded-none"
@@ -108,24 +102,31 @@ export function ObjetoEntrySection() {
 
       <div className="h-[50px] overflow-auto yg-scrollbar border border-gray-400 bg-white shadow-inner">
         <table
-          className="w-full text-[11px] text-left border-collapse"
-          style={{ tableLayout: 'fixed' }}
+          className="text-[11px] text-left border-collapse"
+          style={{ tableLayout: 'fixed', width: colWidths.reduce((a, b) => a + b, 0) + 24 }}
         >
           <colgroup>
-            <col style={{ width: '40px' }} />
-            <col style={{ width: '100px' }} />
-            <col />
-            <col style={{ width: '50px' }} />
-            <col style={{ width: '60px' }} />
-            <col style={{ width: '24px' }} />
+            {colWidths.map((cw, i) => (
+              <col key={i} style={{ width: cw }} />
+            ))}
+            <col style={{ width: 24 }} />
           </colgroup>
           <thead className="bg-yg-dark text-white sticky top-0">
             <tr>
-              <th className="font-bold p-1 border-r border-white/20">Id</th>
-              <th className="font-bold p-1 border-r border-white/20">NObj</th>
-              <th className="font-bold p-1 border-r border-white/20">Descr</th>
-              <th className="font-bold p-1 border-r border-white/20">Qtd</th>
-              <th className="font-bold p-1 border-r border-white/20">Vl Unit</th>
+              {OBJETO_COL_DEFS.map((col, i) => (
+                <th key={col} className="font-bold p-1 border-r border-white/20 relative">
+                  <span className="block overflow-hidden text-ellipsis whitespace-nowrap">
+                    {col}
+                  </span>
+                  {i < OBJETO_COL_DEFS.length - 1 && (
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-white/40 active:bg-white/70 transition-colors duration-150 touch-none"
+                      onMouseDown={onResizeStart(i)}
+                      onTouchStart={onResizeStart(i)}
+                    />
+                  )}
+                </th>
+              ))}
               <th className="font-bold p-1"></th>
             </tr>
           </thead>
@@ -135,8 +136,6 @@ export function ObjetoEntrySection() {
                 <td className="p-1 border-r truncate">{item.idobjNum}</td>
                 <td className="p-1 border-r truncate">{item.nobj}</td>
                 <td className="p-1 border-r truncate">{item.descr}</td>
-                <td className="p-1 border-r text-right">{item.quantidade}</td>
-                <td className="p-1 border-r text-right">{item.valorUnitario}</td>
                 <td className="p-1 text-center">
                   <button
                     onClick={() => handleRemoveItem(i)}
@@ -149,7 +148,7 @@ export function ObjetoEntrySection() {
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-1 text-center text-gray-400 text-[10px]">
+                <td colSpan={4} className="p-1 text-center text-gray-400 text-[10px]">
                   Nenhum item adicionado.
                 </td>
               </tr>
