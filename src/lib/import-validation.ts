@@ -8,6 +8,7 @@ export interface ImportError {
 export interface ValidatedRow {
   rowIndex: number
   data: Record<string, any>
+  rawData: Record<string, string>
   errors: ImportError[]
   isValid: boolean
 }
@@ -145,7 +146,7 @@ export function validateRow(
   }
   if (!data.idm && !errors.some((e) => e.field === 'idm'))
     data.idm = Math.floor(Math.random() * 1000000)
-  return { rowIndex, data, errors, isValid: errors.length === 0 }
+  return { rowIndex, data, rawData: row, errors, isValid: errors.length === 0 }
 }
 
 export function validateAllRows(

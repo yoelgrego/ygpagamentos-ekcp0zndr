@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ImportSummary } from '@/services/import'
+import { Button } from '@/components/ui/button'
 import { Download, Copy, CheckCircle, XCircle, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -11,19 +12,27 @@ interface ImportResultsProps {
 export function ImportResults({ summary, onReset }: ImportResultsProps) {
   const [copied, setCopied] = useState(false)
 
-  const handleDownload = () => {
+  const handleDownloadErrorReport = () => {
+    if (summary.failedRows.length === 0) return
+    const allKeys = new Set<string>()
+    summary.failedRows.forEach((row) => {
+      Object.keys(row.rawData).forEach((key) => allKeys.add(key))
+    })
+    const headers = [...allKeys, 'error_reason']
+    const escape = (val: string) => `"${String(val).replace(/"/g, '""')}"`
     const csv = [
-      'Linha,Campo,Motivo,Valor',
-      ...summary.errors.map(
-        (e) =>
-          `${e.row},${e.field},"${e.reason.replace(/"/g, '""')}","${String(e.value).replace(/"/g, '""')}"`,
+      headers.join(','),
+      ...summary.failedRows.map((row) =>
+        headers
+          .map((h) => escape(h === 'error_reason' ? row.errorReason : (row.rawData[h] ?? '')))
+          .join(','),
       ),
     ].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'erros_importacao.csv'
+    a.download = 'relatorio_erros_importacao.csv'
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -67,12 +76,12 @@ export function ImportResults({ summary, onReset }: ImportResultsProps) {
       {summary.errors.length > 0 && (
         <>
           <div className="flex gap-1">
-            <button
-              onClick={handleDownload}
-              className="h-[24px] px-3 bg-yg-dark text-white text-[11px] font-bold flex items-center gap-1 hover:bg-blue-800 transition-colors"
+            <Button
+              onClick={handleDownloadErrorReport}
+              className="h-[24px] px-3 bg-yg-dark text-white text-[11px] font-bold hover:bg-blue-800"
             >
-              <Download className="w-3 h-3" /> Baixar CSV
-            </button>
+              <Download className="w-3 h-3" /> Baixar Relatório de Erros
+            </Button>
             <button
               onClick={handleCopy}
               className="h-[24px] px-3 bg-gray-300 border border-gray-500 text-black text-[11px] font-bold flex items-center gap-1 hover:bg-gray-400 transition-colors"

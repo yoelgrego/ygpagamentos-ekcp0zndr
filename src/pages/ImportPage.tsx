@@ -11,7 +11,9 @@ import {
 } from '@/lib/import-validation'
 import { importMovimentos, type ImportSummary } from '@/services/import'
 import { toast } from 'sonner'
-import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Loader2, Download } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { downloadImportTemplate } from '@/lib/import-template'
 
 type Step = 'upload' | 'mapping' | 'importing' | 'results'
 
@@ -90,6 +92,13 @@ export default function ImportPage() {
           Selecione um arquivo CSV ou XLSX com os dados de movimentos para importação em lote.
         </p>
         <FileUpload onFileSelected={handleFileSelected} loading={parsing} />
+        <Button
+          onClick={downloadImportTemplate}
+          variant="outline"
+          className="h-[28px] text-[11px] font-bold"
+        >
+          <Download className="w-3.5 h-3.5" /> Baixar Modelo
+        </Button>
       </div>
     )
   }
