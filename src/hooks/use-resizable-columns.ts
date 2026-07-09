@@ -1,46 +1,95 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import type { MouseEvent as ReactMouseEvent } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
-export function useResizableColumns(initialWidths: number[], minWidth = 40) {
-  const [widths, setWidths] = useState<number[]>(initialWidths)
-  const dragRef = useRef<{ index: number; startX: number; startW: number } | null>(null)
+interface UseResizableColumnsOptions {
+  initialWidths: number[]
+  minWidth?: number
+  maxWidth?: number
+}
+
+export function useResizableColumns({
+  initialWidths,
+  minWidth = 40,
+  maxWidth = 600,
+}: UseResizableColumnsOptions) {
+  const [colWidths, setColWidths] = useState<number[]>(initialWidths)
+  const resizeRef = useRef<{
+    index: number
+    startX: number
+    startWidths: number[]
+  } | null>(null)
 
   const onResizeStart = useCallback(
-    (index: number) => (e: ReactMouseEvent) => {
+    (index: number) => (e: React.MouseEvent | React.TouchEvent) => {
       e.preventDefault()
       e.stopPropagation()
-      dragRef.current = { index, startX: e.clientX, startW: widths[index] }
-      document.body.style.cursor = 'col-resize'
-      document.body.style.userSelect = 'none'
+      let clientX: number
+      if ('touches' in e) {
+        if (e.touches.length === 0) return
+        clientX = e.touches[0].clientX
+      } else {
+        clientX = (e as React.MouseEvent).clientX
+      }
+      resizeRef.current = {
+        index,
+        startX: clientX,
+        startWidths: [...colWidths],
+      }
     },
-    [widths],
+    [colWidths],
   )
 
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!dragRef.current) return
-      const { index, startX, startW } = dragRef.current
-      const newW = Math.max(minWidth, startW + (e.clientX - startX))
-      setWidths((prev) => {
-        const next = [...prev]
-        next[index] = newW
-        return next
-      })
-    }
-    const onUp = () => {
-      if (dragRef.current) {
-        dragRef.current = null
-        document.body.style.cursor = ''
-        document.body.style.userSelect = ''
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      if (!resizeRef.current) return
+      e.preventDefault()
+      let clientX: number
+      if ('touches' in e) {
+        if (e.touches.length === 0) return
+        clientX = e.touches[0].clientX
+      } else {
+        clientX = (e as MouseEvent).clientX
       }
+      const { index, startX, startWidths } = resizeRef.current
+      const rightIndex = index + 1
+      if (rightIndex >= startWidths.length) return
+      const delta = clientX - startX
+      let newLeft = startWidths[index] + delta
+      let newRight = startWidths[rightIndex] - delta
+      if (newLeft < minWidth) {
+        newRight -= minWidth - newLeft
+        newLeft = minWidth
+      }
+      if (newRight < minWidth) {
+        newLeft -= minWidth - newRight
+        newRight = minWidth
+      }
+      newLeft = Math.min(newLeft, maxWidth)
+      newRight = Math.min(newRight, maxWidth)
+      const newWidths = [...startWidths]
+      newWidths[index] = newLeft
+      newWidths[rightIndex] = newRight
+      setColWidths(newWidths)
     }
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
-    return () => {
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-    }
-  }, [minWidth])
 
-  return { widths, onResizeStart }
+    const handleEnd = () => {
+      resizeRef.current = null
+    }
+
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseup', handleEnd)
+    window.addEventListener('touchmove', handleMove, { passive: false })
+    window.addEventListener('touchend', handleEnd)
+    return () => {
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseup', handleEnd)
+      window.removeEventListener('touchmove', handleMove)
+      window.removeEventListener('touchend', handleEnd)
+    }
+  }, [minWidth, maxWidth])
+
+  const resetWidths = useCallback(() => {
+    setColWidths(initialWidths)
+  }, [initialWidths])
+
+  return { colWidths, onResizeStart, resetWidths }
 }

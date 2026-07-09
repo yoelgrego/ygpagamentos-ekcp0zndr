@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import useRealtime from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
+import { ObjetoGrid } from '@/components/ObjetoGrid'
 import { useResizableColumns } from '@/hooks/use-resizable-columns'
 
 const w = (chars: number) => `${chars * 8 + 12}px`
@@ -837,6 +838,10 @@ export default function Index() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="mt-4">
+        <h3 className="text-sm font-semibold text-yg-dark mb-1">Grid de Objeto</h3>
+        <ObjetoGrid />
       </div>
 
       <footer className="h-10 bg-yg-dark shrink-0 flex items-center px-1 gap-1 -mx-2 -mb-2 mt-2">
