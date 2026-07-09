@@ -715,13 +715,13 @@ export default function Index() {
               style={{ tableLayout: 'fixed' }}
             >
               <colgroup>
-                <col style={{ width: '5.56%' }} />
-                <col style={{ width: '94.44%' }} />
+                <col style={{ width: '33.33%' }} />
+                <col style={{ width: '66.67%' }} />
               </colgroup>
               <thead className="bg-yg-dark text-white sticky top-0">
                 <tr>
-                  <th className="font-bold p-1 border-r border-white/20">IdObj</th>
-                  <th className="font-bold p-1">NObj</th>
+                  <th className="font-bold p-1 border-r border-white/20">Id</th>
+                  <th className="font-bold p-1">NObj</th>{' '}
                 </tr>
               </thead>
               <tbody>
