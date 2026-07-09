@@ -18,13 +18,13 @@ export function ImportResults({ summary, onReset }: ImportResultsProps) {
     summary.failedRows.forEach((row) => {
       Object.keys(row.rawData).forEach((key) => allKeys.add(key))
     })
-    const headers = [...allKeys, 'error_reason']
+    const headers = [...allKeys, 'Motivo do Erro']
     const escape = (val: string) => `"${String(val).replace(/"/g, '""')}"`
     const csv = [
       headers.join(','),
       ...summary.failedRows.map((row) =>
         headers
-          .map((h) => escape(h === 'error_reason' ? row.errorReason : (row.rawData[h] ?? '')))
+          .map((h) => escape(h === 'Motivo do Erro' ? row.errorReason : (row.rawData[h] ?? '')))
           .join(','),
       ),
     ].join('\n')
@@ -72,6 +72,10 @@ export function ImportResults({ summary, onReset }: ImportResultsProps) {
           </div>
         </div>
       </div>
+
+      <p className="text-sm text-center text-yg-dark font-semibold py-1">
+        {summary.success} registros importados com sucesso, {summary.failed} falhas encontradas
+      </p>
 
       {summary.errors.length > 0 && (
         <>

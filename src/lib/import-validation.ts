@@ -93,7 +93,7 @@ export function validateRow(
         errors.push({
           row: rowIndex,
           field: field.key,
-          reason: `Campo '${field.key}' não mapeado`,
+          reason: `${field.label} não mapeado`,
           value: '',
         })
       continue
@@ -104,7 +104,7 @@ export function validateRow(
         errors.push({
           row: rowIndex,
           field: field.key,
-          reason: `Campo '${field.key}' é obrigatório`,
+          reason: `${field.label} é obrigatório`,
           value: '',
         })
       continue
@@ -116,7 +116,7 @@ export function validateRow(
         errors.push({
           row: rowIndex,
           field: field.key,
-          reason: `Valor '${raw}' não é número válido`,
+          reason: `${field.label}: valor inválido`,
           value: raw,
         })
         continue
@@ -125,7 +125,7 @@ export function validateRow(
         errors.push({
           row: rowIndex,
           field: field.key,
-          reason: `Valor ${num} menor que mínimo (${field.min})`,
+          reason: `${field.label} deve ser maior ou igual a ${field.min}`,
           value: raw,
         })
         continue
@@ -134,7 +134,7 @@ export function validateRow(
         errors.push({
           row: rowIndex,
           field: field.key,
-          reason: `Valor ${num} maior que máximo (${field.max})`,
+          reason: `${field.label} deve ser menor ou igual a ${field.max}`,
           value: raw,
         })
         continue

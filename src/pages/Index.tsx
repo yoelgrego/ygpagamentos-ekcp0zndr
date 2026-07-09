@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { Upload } from 'lucide-react'
 import { YgLabel, YgInput, YgButton, YgFieldGroup } from '@/components/yg-ui'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAppStore } from '@/stores/use-app-store'
@@ -415,6 +417,13 @@ export default function Index() {
 
   return (
     <div className="flex flex-col h-full gap-2 relative">
+      <Link
+        to="/import"
+        className="flex items-center gap-2 bg-yg-dark text-white px-3 py-1.5 hover:bg-blue-800 transition-colors shrink-0 self-start group"
+      >
+        <Upload className="w-4 h-4 text-yg-gold group-hover:text-white transition-colors" />
+        <span className="text-[12px] font-bold">Acessar Importação</span>
+      </Link>
       <div className="flex gap-2 shrink-0">
         <div className="flex flex-col gap-2 flex-1 pt-1">
           <div className="flex gap-2">

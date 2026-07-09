@@ -87,18 +87,19 @@ export default function ImportPage() {
   if (step === 'upload') {
     return (
       <div className="flex flex-col gap-2 h-full">
-        <h2 className="text-sm font-bold text-yg-dark">Importar Movimentos</h2>
+        <div className="flex items-center justify-between shrink-0">
+          <h2 className="text-sm font-bold text-yg-dark">Importar Movimentos</h2>
+          <Button
+            onClick={downloadImportTemplate}
+            className="h-[28px] text-[11px] font-bold bg-yg-dark hover:bg-blue-800"
+          >
+            <Download className="w-3.5 h-3.5" /> Baixar Modelo
+          </Button>
+        </div>
         <p className="text-[11px] text-gray-600">
           Selecione um arquivo CSV ou XLSX com os dados de movimentos para importação em lote.
         </p>
         <FileUpload onFileSelected={handleFileSelected} loading={parsing} />
-        <Button
-          onClick={downloadImportTemplate}
-          variant="outline"
-          className="h-[28px] text-[11px] font-bold"
-        >
-          <Download className="w-3.5 h-3.5" /> Baixar Modelo
-        </Button>
       </div>
     )
   }
