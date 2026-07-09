@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-08T18:59:50.107Z",
+  "generatedAt": "2026-07-09T11:46:53.442Z",
   "collections": [
     {
       "name": "users",
@@ -86,28 +86,14 @@
         {
           "name": "idcat",
           "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "descricao",
-          "type": "text",
           "required": true,
           "system": false
         },
         {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "name": "nocat",
+          "type": "text",
+          "required": true,
+          "system": false
         }
       ],
       "indexes": []
@@ -126,35 +112,14 @@
         {
           "name": "idnat",
           "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "descricao",
-          "type": "text",
           "required": true,
           "system": false
         },
         {
-          "name": "idcat",
-          "type": "relation",
-          "required": false,
-          "system": false,
-          "collectionRef": "09catego"
-        },
-        {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "name": "nonat",
+          "type": "text",
+          "required": true,
+          "system": false
         }
       ],
       "indexes": []
@@ -171,42 +136,16 @@
       },
       "fields": [
         {
-          "name": "idforn",
+          "name": "idfornece",
           "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "nome",
-          "type": "text",
           "required": true,
           "system": false
         },
         {
-          "name": "cnpj_cpf",
+          "name": "nofornece",
           "type": "text",
-          "required": false,
+          "required": true,
           "system": false
-        },
-        {
-          "name": "contato",
-          "type": "text",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []
@@ -223,36 +162,16 @@
       },
       "fields": [
         {
-          "name": "idben",
+          "name": "idbenef",
           "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "nome",
-          "type": "text",
           "required": true,
           "system": false
         },
         {
-          "name": "documento",
+          "name": "nobenef",
           "type": "text",
-          "required": false,
+          "required": true,
           "system": false
-        },
-        {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []
@@ -271,34 +190,20 @@
         {
           "name": "idmoeda",
           "type": "number",
-          "required": false,
+          "required": true,
           "system": false
         },
         {
-          "name": "simbolo",
+          "name": "nomoeda",
           "type": "text",
           "required": true,
           "system": false
         },
         {
-          "name": "descricao",
+          "name": "origem",
           "type": "text",
           "required": false,
           "system": false
-        },
-        {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []
@@ -317,34 +222,20 @@
         {
           "name": "idobj",
           "type": "number",
-          "required": false,
+          "required": true,
           "system": false
         },
         {
-          "name": "descricao",
+          "name": "nobj",
           "type": "text",
           "required": true,
           "system": false
         },
         {
-          "name": "tipo",
+          "name": "descr",
           "type": "text",
           "required": false,
           "system": false
-        },
-        {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []
@@ -361,30 +252,16 @@
       },
       "fields": [
         {
-          "name": "idtipodoc",
+          "name": "idtipo",
           "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "descricao",
-          "type": "text",
           "required": true,
           "system": false
         },
         {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "name": "notipo",
+          "type": "text",
+          "required": true,
+          "system": false
         }
       ],
       "indexes": []
@@ -401,30 +278,16 @@
       },
       "fields": [
         {
-          "name": "idpag",
+          "name": "idpaga",
           "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "nome",
-          "type": "text",
           "required": true,
           "system": false
         },
         {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "name": "nopaga",
+          "type": "text",
+          "required": true,
+          "system": false
         }
       ],
       "indexes": []

@@ -29,7 +29,6 @@ const defaultForm = {
   mes: '',
   dia: '',
   valor: '',
-  historico: '',
   cartao: '',
   situacao: '',
 
@@ -317,7 +316,6 @@ export default function Index() {
       mes: row.mes,
       dia: row.dia,
       valor: row.valor,
-      historico: row.historico,
       cartao: row.cartao,
       situacao: row.situacao,
       idforn: row.expand?.idforn?.idforn || '',
@@ -346,7 +344,6 @@ export default function Index() {
       mes: row.mes?.toString() || '',
       dia: row.dia?.toString() || '',
       valor: row.valor?.toString() || '',
-      historico: row.historico || '',
       cartao: row.cartao || '',
       situacao: row.situacao || 'Pendente',
 
@@ -425,7 +422,6 @@ export default function Index() {
       idpag: formData.idpag || null,
       idtipodoc: formData.idtipodoc || null,
       idmoeda: formData.idmoeda || null,
-      historico: formData.historico,
       cartao: formData.cartao,
       situacao: formData.situacao,
       idmov: formData.idmov
@@ -575,7 +571,7 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>Valor</YgLabel>
               <YgInput
-                style={{ width: w(16) }}
+                style={{ width: w(32) }}
                 value={formData.valor}
                 onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
               />
@@ -713,14 +709,14 @@ export default function Index() {
             </div>
           </div>
 
-          <div className="overflow-y-auto yg-scrollbar border-t border-yg-dark h-[68px]">
+          <div className="overflow-y-auto yg-scrollbar border-t border-yg-dark h-[72px]">
             <table
               className="w-full text-[11px] text-left border-collapse"
               style={{ tableLayout: 'fixed' }}
             >
               <colgroup>
-                <col style={{ width: '16.67%' }} />
-                <col style={{ width: '83.33%' }} />
+                <col style={{ width: '5.56%' }} />
+                <col style={{ width: '94.44%' }} />
               </colgroup>
               <thead className="bg-yg-dark text-white sticky top-0">
                 <tr>
@@ -750,7 +746,7 @@ export default function Index() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto yg-scrollbar border border-gray-400 bg-white shadow-inner mt-2">
+      <div className="flex-1 min-h-0 overflow-auto yg-scrollbar border border-gray-400 bg-white shadow-inner mt-2">
         <table
           className="text-[11px] text-left border-collapse"
           style={{ tableLayout: 'fixed', width: colWidths.reduce((a, b) => a + b, 0) }}
