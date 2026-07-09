@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-09T12:32:28.683Z",
+  "generatedAt": "2026-07-09T20:34:48.704Z",
   "collections": [
     {
       "name": "users",
@@ -304,9 +304,9 @@
       },
       "fields": [
         {
-          "name": "idmov",
+          "name": "idm",
           "type": "number",
-          "required": false,
+          "required": true,
           "system": false
         },
         {
@@ -324,6 +324,24 @@
         {
           "name": "dia",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "idfornece",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "idbenef",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "idmoeda",
+          "type": "number",
           "required": true,
           "system": false
         },
@@ -334,78 +352,40 @@
           "system": false
         },
         {
+          "name": "idtipo",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "card",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "idpaga",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "idcat",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
           "name": "idnat",
-          "type": "relation",
-          "required": false,
-          "system": false,
-          "collectionRef": "10natureza"
-        },
-        {
-          "name": "idforn",
-          "type": "relation",
-          "required": false,
-          "system": false,
-          "collectionRef": "03fornecedor"
-        },
-        {
-          "name": "idben",
-          "type": "relation",
-          "required": false,
-          "system": false,
-          "collectionRef": "04beneficiario"
-        },
-        {
-          "name": "idpag",
-          "type": "relation",
-          "required": false,
-          "system": false,
-          "collectionRef": "08pagador"
-        },
-        {
-          "name": "idtipodoc",
-          "type": "relation",
-          "required": false,
-          "system": false,
-          "collectionRef": "07tipodoc"
-        },
-        {
-          "name": "idmoeda",
-          "type": "relation",
-          "required": false,
-          "system": false,
-          "collectionRef": "05moeda"
-        },
-        {
-          "name": "historico",
-          "type": "text",
-          "required": false,
+          "type": "number",
+          "required": true,
           "system": false
         },
         {
-          "name": "situacao",
+          "name": "pago",
           "type": "text",
           "required": false,
           "system": false
-        },
-        {
-          "name": "cartao",
-          "type": "text",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []
