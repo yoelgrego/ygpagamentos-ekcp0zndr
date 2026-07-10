@@ -1,13 +1,23 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Upload } from 'lucide-react'
+import { Upload, Trash2, Loader2, AlertTriangle } from 'lucide-react'
 import { YgLabel, YgInput, YgButton, YgFieldGroup } from '@/components/yg-ui'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 import { useAppStore } from '@/stores/use-app-store'
 import { api } from '@/services/api'
 import { toast } from 'sonner'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
-import useRealtime from '@/hooks/use-realtime'
+import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
 import { ObjetoEntrySection } from '@/components/ObjetoEntrySection'
 import { useResizableColumns } from '@/hooks/use-resizable-columns'
@@ -33,26 +43,18 @@ const defaultForm = {
   valor: '',
   cartao: '',
   situacao: '',
-
-  idforn: '',
   idfornNum: '',
   fornName: '',
-  idben: '',
   idbenNum: '',
   benName: '',
-  idmoeda: '',
   idmoedaNum: '',
   moedaName: '',
-  idtipodoc: '',
   idtipodocNum: '',
   tipoDocName: '',
-  idpag: '',
   idpagNum: '',
   pagadorName: '',
-  idcat: '',
   idcatNum: '',
   catName: '',
-  idnat: '',
   idnatNum: '',
   natName: '',
 }
@@ -85,6 +87,15 @@ const INITIAL_COL_WIDTHS = [
   50, 45, 40, 40, 60, 120, 55, 100, 55, 60, 80, 55, 50, 70, 50, 80, 70, 50, 90, 50, 90,
 ]
 
+function createLookupMap(items: any[], idField: string, nameField: string): Map<number, string> {
+  const map = new Map<number, string>()
+  for (const item of items) {
+    const id = Number(item[idField])
+    if (!isNaN(id)) map.set(id, item[nameField] || '')
+  }
+  return map
+}
+
 export default function Index() {
   const {
     movimentos,
@@ -95,6 +106,8 @@ export default function Index() {
     pagadores,
     categorias,
     naturezas,
+    loading,
+    error,
     fetchLookups,
     fetchMovimentos,
   } = useAppStore()
@@ -102,7 +115,7 @@ export default function Index() {
   useEffect(() => {
     fetchLookups()
     fetchMovimentos()
-  }, [])
+  }, [fetchLookups, fetchMovimentos])
 
   useRealtime('01movimento', () => {
     fetchMovimentos()
@@ -112,12 +125,10 @@ export default function Index() {
   })
 
   const [formData, setFormData] = useState(defaultForm)
-
   const [lookup, setLookup] = useState<{ isOpen: boolean; type: LookupType }>({
     isOpen: false,
     type: null,
   })
-
   const [showClearDialog, setShowClearDialog] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
 
@@ -127,69 +138,97 @@ export default function Index() {
     maxWidth: 600,
   })
 
-  const handleLookup = (type: LookupType) => {
-    setLookup({ isOpen: true, type })
-  }
+  const lookupMaps = useMemo(
+    () => ({
+      fornecedor: createLookupMap(fornecedores, 'idfornece', 'nofornece'),
+      beneficiario: createLookupMap(beneficiarios, 'idbenef', 'nobenef'),
+      moeda: createLookupMap(moedas, 'idmoeda', 'nomoeda'),
+      tipodoc: createLookupMap(tipodocs, 'idtipo', 'notipo'),
+      pagador: createLookupMap(pagadores, 'idpaga', 'nopaga'),
+      categoria: createLookupMap(categorias, 'idcat', 'nocat'),
+      natureza: createLookupMap(naturezas, 'idnat', 'nonat'),
+    }),
+    [fornecedores, beneficiarios, moedas, tipodocs, pagadores, categorias, naturezas],
+  )
+
+  const v1Movimentos = useMemo(() => {
+    return movimentos.map((row: any) => ({
+      id: row.id,
+      idmov: row.idm,
+      ano: row.ano,
+      mes: row.mes,
+      dia: row.dia,
+      valor: row.valor,
+      cartao: row.card,
+      situacao: row.pago,
+      idforn: row.idfornece,
+      fornecedorNome: lookupMaps.fornecedor.get(row.idfornece) || '',
+      idben: row.idbenef,
+      beneficiarioNome: lookupMaps.beneficiario.get(row.idbenef) || '',
+      idmoeda: row.idmoeda,
+      moedaNome: lookupMaps.moeda.get(row.idmoeda) || '',
+      idtipodoc: row.idtipo,
+      tipoDocNome: lookupMaps.tipodoc.get(row.idtipo) || '',
+      idpag: row.idpaga,
+      pagadorNome: lookupMaps.pagador.get(row.idpaga) || '',
+      idcat: row.idcat,
+      categoriaNome: lookupMaps.categoria.get(row.idcat) || '',
+      idnat: row.idnat,
+      naturezaNome: lookupMaps.natureza.get(row.idnat) || '',
+    }))
+  }, [movimentos, lookupMaps])
+
+  const handleLookup = (type: LookupType) => setLookup({ isOpen: true, type })
 
   const handleSelect = (record: any) => {
     switch (lookup.type) {
       case 'fornecedor':
         setFormData((p) => ({
           ...p,
-          idforn: record.id,
-          idfornNum: record.idforn?.toString() || '',
-          fornName: record.nome,
+          idfornNum: record.idfornece?.toString() || '',
+          fornName: record.nofornece,
         }))
         break
       case 'beneficiario':
         setFormData((p) => ({
           ...p,
-          idben: record.id,
-          idbenNum: record.idben?.toString() || '',
-          benName: record.nome,
+          idbenNum: record.idbenef?.toString() || '',
+          benName: record.nobenef,
         }))
         break
       case 'moeda':
         setFormData((p) => ({
           ...p,
-          idmoeda: record.id,
           idmoedaNum: record.idmoeda?.toString() || '',
-          moedaName: record.descricao,
+          moedaName: record.nomoeda,
         }))
         break
       case 'tipodoc':
         setFormData((p) => ({
           ...p,
-          idtipodoc: record.id,
-          idtipodocNum: record.idtipodoc?.toString() || '',
-          tipoDocName: record.descricao,
+          idtipodocNum: record.idtipo?.toString() || '',
+          tipoDocName: record.notipo,
         }))
         break
       case 'pagador':
         setFormData((p) => ({
           ...p,
-          idpag: record.id,
-          idpagNum: record.idpag?.toString() || '',
-          pagadorName: record.nome,
+          idpagNum: record.idpaga?.toString() || '',
+          pagadorName: record.nopaga,
         }))
         break
       case 'categoria':
         setFormData((p) => ({
           ...p,
-          idcat: record.id,
           idcatNum: record.idcat?.toString() || '',
-          catName: record.descricao,
-          idnat: '',
-          idnatNum: '',
-          natName: '',
+          catName: record.nocat,
         }))
         break
       case 'natureza':
         setFormData((p) => ({
           ...p,
-          idnat: record.id,
           idnatNum: record.idnat?.toString() || '',
-          natName: record.descricao,
+          natName: record.nonat,
         }))
         break
     }
@@ -199,123 +238,80 @@ export default function Index() {
   const lookupData = useMemo(() => {
     switch (lookup.type) {
       case 'fornecedor':
-        return { headers: ['ID', 'Nome', 'CNPJ/CPF'], data: fornecedores }
+        return { headers: ['ID', 'Nome'], data: fornecedores }
       case 'beneficiario':
-        return { headers: ['ID', 'Nome', 'Documento'], data: beneficiarios }
+        return { headers: ['ID', 'Nome'], data: beneficiarios }
       case 'moeda':
-        return { headers: ['ID', 'Símbolo', 'Descrição'], data: moedas }
+        return { headers: ['ID', 'Nome', 'Origem'], data: moedas }
       case 'tipodoc':
-        return { headers: ['ID', 'Descrição'], data: tipodocs }
+        return { headers: ['ID', 'Nome'], data: tipodocs }
       case 'pagador':
         return { headers: ['ID', 'Nome'], data: pagadores }
       case 'categoria':
-        return { headers: ['ID', 'Descrição'], data: categorias }
+        return { headers: ['ID', 'Nome'], data: categorias }
       case 'natureza':
-        return {
-          headers: ['ID', 'Descrição'],
-          data: formData.idcat ? naturezas.filter((n) => n.idcat === formData.idcat) : naturezas,
-        }
+        return { headers: ['ID', 'Nome'], data: naturezas }
       default:
         return { headers: [], data: [] }
     }
-  }, [
-    lookup.type,
-    formData.idcat,
-    fornecedores,
-    beneficiarios,
-    moedas,
-    tipodocs,
-    pagadores,
-    categorias,
-    naturezas,
-  ])
+  }, [lookup.type, fornecedores, beneficiarios, moedas, tipodocs, pagadores, categorias, naturezas])
 
   const renderModalRow = (row: any) => {
     switch (lookup.type) {
       case 'fornecedor':
         return (
           <>
-            <td className="p-1 border">{row.idforn}</td>
-            <td className="p-1 border">{row.nome}</td>
-            <td className="p-1 border">{row.cnpj_cpf}</td>
+            <td className="p-1 border">{row.idfornece}</td>
+            <td className="p-1 border">{row.nofornece}</td>
           </>
         )
       case 'beneficiario':
         return (
           <>
-            <td className="p-1 border">{row.idben}</td>
-            <td className="p-1 border">{row.nome}</td>
-            <td className="p-1 border">{row.documento}</td>
+            <td className="p-1 border">{row.idbenef}</td>
+            <td className="p-1 border">{row.nobenef}</td>
           </>
         )
       case 'moeda':
         return (
           <>
             <td className="p-1 border">{row.idmoeda}</td>
-            <td className="p-1 border">{row.simbolo}</td>
-            <td className="p-1 border">{row.descricao}</td>
+            <td className="p-1 border">{row.nomoeda}</td>
+            <td className="p-1 border">{row.origem}</td>
           </>
         )
       case 'tipodoc':
         return (
           <>
-            <td className="p-1 border">{row.idtipodoc}</td>
-            <td className="p-1 border">{row.descricao}</td>
+            <td className="p-1 border">{row.idtipo}</td>
+            <td className="p-1 border">{row.notipo}</td>
           </>
         )
       case 'pagador':
         return (
           <>
-            <td className="p-1 border">{row.idpag}</td>
-            <td className="p-1 border">{row.nome}</td>
+            <td className="p-1 border">{row.idpaga}</td>
+            <td className="p-1 border">{row.nopaga}</td>
           </>
         )
       case 'categoria':
         return (
           <>
             <td className="p-1 border">{row.idcat}</td>
-            <td className="p-1 border">{row.descricao}</td>
+            <td className="p-1 border">{row.nocat}</td>
           </>
         )
       case 'natureza':
         return (
           <>
             <td className="p-1 border">{row.idnat}</td>
-            <td className="p-1 border">{row.descricao}</td>
+            <td className="p-1 border">{row.nonat}</td>
           </>
         )
       default:
         return null
     }
   }
-
-  const v1Movimentos = useMemo(() => {
-    return movimentos.map((row) => ({
-      id: row.id,
-      idmov: row.idmov,
-      ano: row.ano,
-      mes: row.mes,
-      dia: row.dia,
-      valor: row.valor,
-      cartao: row.cartao,
-      situacao: row.situacao,
-      idforn: row.expand?.idforn?.idforn || '',
-      fornecedorNome: row.expand?.idforn?.nome || '',
-      idben: row.expand?.idben?.idben || '',
-      beneficiarioNome: row.expand?.idben?.nome || '',
-      idmoeda: row.expand?.idmoeda?.idmoeda || '',
-      moedaSimbolo: row.expand?.idmoeda?.simbolo || '',
-      idtipodoc: row.expand?.idtipodoc?.idtipodoc || '',
-      tipoDocDesc: row.expand?.idtipodoc?.descricao || '',
-      idpag: row.expand?.idpag?.idpag || '',
-      pagadorNome: row.expand?.idpag?.nome || '',
-      idnat: row.expand?.idnat?.idnat || '',
-      naturezaDesc: row.expand?.idnat?.descricao || '',
-      idcat: row.expand?.idnat?.expand?.idcat?.idcat || '',
-      categoriaDesc: row.expand?.idnat?.expand?.idcat?.descricao || '',
-      expand: row.expand,
-    }))
-  }, [movimentos])
 
   const handleRowClick = (row: any) => {
     setFormData({
@@ -325,43 +321,26 @@ export default function Index() {
       mes: row.mes?.toString() || '',
       dia: row.dia?.toString() || '',
       valor: row.valor?.toString() || '',
-      cartao: row.cartao || '',
-      situacao: row.situacao || 'Pendente',
-
-      idforn: row.expand?.idforn?.id || '',
-      idfornNum: row.expand?.idforn?.idforn?.toString() || '',
+      cartao: row.cartao?.toString() || '',
+      situacao: row.situacao || '',
+      idfornNum: row.idforn?.toString() || '',
       fornName: row.fornecedorNome || '',
-
-      idben: row.expand?.idben?.id || '',
-      idbenNum: row.expand?.idben?.idben?.toString() || '',
+      idbenNum: row.idben?.toString() || '',
       benName: row.beneficiarioNome || '',
-
-      idmoeda: row.expand?.idmoeda?.id || '',
-      idmoedaNum: row.expand?.idmoeda?.idmoeda?.toString() || '',
-      moedaName: row.expand?.idmoeda?.descricao || '',
-
-      idtipodoc: row.expand?.idtipodoc?.id || '',
-      idtipodocNum: row.expand?.idtipodoc?.idtipodoc?.toString() || '',
-      tipoDocName: row.tipoDocDesc || '',
-
-      idpag: row.expand?.idpag?.id || '',
-      idpagNum: row.expand?.idpag?.idpag?.toString() || '',
+      idmoedaNum: row.idmoeda?.toString() || '',
+      moedaName: row.moedaNome || '',
+      idtipodocNum: row.idtipodoc?.toString() || '',
+      tipoDocName: row.tipoDocNome || '',
+      idpagNum: row.idpag?.toString() || '',
       pagadorName: row.pagadorNome || '',
-
-      idnat: row.expand?.idnat?.id || '',
-      idnatNum: row.expand?.idnat?.idnat?.toString() || '',
-      natName: row.naturezaDesc || '',
-
-      idcat: row.expand?.idnat?.expand?.idcat?.id || '',
-      idcatNum: row.expand?.idnat?.expand?.idcat?.idcat?.toString() || '',
-      catName: row.categoriaDesc || '',
+      idcatNum: row.idcat?.toString() || '',
+      catName: row.categoriaNome || '',
+      idnatNum: row.idnat?.toString() || '',
+      natName: row.naturezaNome || '',
     })
   }
 
-  const handleNovo = () => {
-    setFormData(defaultForm)
-  }
-
+  const handleNovo = () => setFormData(defaultForm)
   const handleLimpar = () => handleNovo()
 
   const handleClearData = async () => {
@@ -372,7 +351,7 @@ export default function Index() {
       handleNovo()
       fetchMovimentos()
     } catch (e) {
-      toast.error('Erro ao limpar dados')
+      toast.error('Erro ao limpar dados. Verifique se está autenticado.')
     } finally {
       setIsClearing(false)
       setShowClearDialog(false)
@@ -398,23 +377,30 @@ export default function Index() {
     if (isNaN(mes) || mes < 1 || mes > 12) return toast.error('Mês inválido (1-12)')
     if (isNaN(dia) || dia < 1 || dia > 31) return toast.error('Dia inválido (1-31)')
     if (!formData.valor) return toast.error('Valor é obrigatório')
+    if (!formData.idfornNum) return toast.error('Fornecedor é obrigatório')
+    if (!formData.idbenNum) return toast.error('Beneficiário é obrigatório')
+    if (!formData.idmoedaNum) return toast.error('Moeda é obrigatória')
+    if (!formData.idtipodocNum) return toast.error('Tipo de documento é obrigatório')
+    if (!formData.idpagNum) return toast.error('Pagador é obrigatório')
+    if (!formData.idcatNum) return toast.error('Categoria é obrigatória')
+    if (!formData.idnatNum) return toast.error('Natureza é obrigatória')
+    if (!formData.cartao) return toast.error('Cartão é obrigatório')
 
     const payload = {
+      idm: formData.idmov ? parseInt(formData.idmov) : Math.floor(Math.random() * 1000000),
       ano,
       mes,
       dia,
       valor: parseFloat(formData.valor),
-      idnat: formData.idnat || null,
-      idforn: formData.idforn || null,
-      idben: formData.idben || null,
-      idpag: formData.idpag || null,
-      idtipodoc: formData.idtipodoc || null,
-      idmoeda: formData.idmoeda || null,
-      cartao: formData.cartao,
-      situacao: formData.situacao,
-      idmov: formData.idmov
-        ? parseInt(formData.idmov.toString())
-        : Math.floor(Math.random() * 1000000),
+      idfornece: parseInt(formData.idfornNum),
+      idbenef: parseInt(formData.idbenNum),
+      idmoeda: parseInt(formData.idmoedaNum),
+      idtipo: parseInt(formData.idtipodocNum),
+      idpaga: parseInt(formData.idpagNum),
+      idcat: parseInt(formData.idcatNum),
+      idnat: parseInt(formData.idnatNum),
+      card: parseInt(formData.cartao),
+      pago: formData.situacao || '',
     }
 
     try {
@@ -423,7 +409,7 @@ export default function Index() {
         toast.success('Atualizado com sucesso')
       } else {
         const res = await api.movimentos.create(payload)
-        setFormData((p) => ({ ...p, id: res.id, idmov: res.idmov.toString() }))
+        setFormData((p) => ({ ...p, id: res.id, idmov: res.idm.toString() }))
         toast.success('Criado com sucesso')
       }
       fetchMovimentos()
@@ -451,6 +437,7 @@ export default function Index() {
           <span className="text-[12px] font-bold">Limpar Dados</span>
         </button>
       </div>
+
       <div className="flex gap-2 shrink-0">
         <div className="flex flex-col gap-2 flex-1 pt-1">
           <div className="flex gap-2">
@@ -459,7 +446,7 @@ export default function Index() {
               <YgInput
                 style={{ width: w(7) }}
                 value={formData.idmov}
-                onChange={(e) => setFormData({ ...formData, idmov: e.target.value })}
+                onChange={(e: any) => setFormData({ ...formData, idmov: e.target.value })}
               />
             </YgFieldGroup>
             <YgFieldGroup>
@@ -467,7 +454,7 @@ export default function Index() {
               <YgInput
                 style={{ width: w(4) }}
                 value={formData.ano}
-                onChange={(e) => setFormData({ ...formData, ano: e.target.value })}
+                onChange={(e: any) => setFormData({ ...formData, ano: e.target.value })}
               />
             </YgFieldGroup>
             <YgFieldGroup>
@@ -475,7 +462,7 @@ export default function Index() {
               <YgInput
                 style={{ width: w(2) }}
                 value={formData.mes}
-                onChange={(e) => setFormData({ ...formData, mes: e.target.value })}
+                onChange={(e: any) => setFormData({ ...formData, mes: e.target.value })}
               />
             </YgFieldGroup>
             <YgFieldGroup>
@@ -483,7 +470,7 @@ export default function Index() {
               <YgInput
                 style={{ width: w(2) }}
                 value={formData.dia}
-                onChange={(e) => setFormData({ ...formData, dia: e.target.value })}
+                onChange={(e: any) => setFormData({ ...formData, dia: e.target.value })}
               />
             </YgFieldGroup>
           </div>
@@ -539,7 +526,7 @@ export default function Index() {
               <YgInput
                 style={{ width: w(32) }}
                 value={formData.valor}
-                onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+                onChange={(e: any) => setFormData({ ...formData, valor: e.target.value })}
               />
             </YgFieldGroup>
             <YgFieldGroup>
@@ -547,7 +534,7 @@ export default function Index() {
               <YgInput
                 style={{ width: w(4) }}
                 value={formData.cartao}
-                onChange={(e) => setFormData({ ...formData, cartao: e.target.value })}
+                onChange={(e: any) => setFormData({ ...formData, cartao: e.target.value })}
               />
             </YgFieldGroup>
           </div>
@@ -584,7 +571,7 @@ export default function Index() {
               <YgInput
                 style={{ width: w(10) }}
                 value={formData.situacao}
-                onChange={(e) => setFormData({ ...formData, situacao: e.target.value })}
+                onChange={(e: any) => setFormData({ ...formData, situacao: e.target.value })}
               />
             </YgFieldGroup>
           </div>
@@ -624,106 +611,128 @@ export default function Index() {
         className="flex-1 min-h-0 overflow-auto yg-scrollbar border border-gray-400 bg-white shadow-inner mt-2"
         style={{ touchAction: 'pan-y' }}
       >
-        <table
-          className="text-[11px] text-left border-collapse"
-          style={{ tableLayout: 'fixed', width: colWidths.reduce((a, b) => a + b, 0) }}
-        >
-          <colgroup>
-            {colWidths.map((cw, i) => (
-              <col key={i} style={{ width: cw }} />
-            ))}
-          </colgroup>
-          <thead className="bg-yg-dark text-white sticky top-0 z-20">
-            <tr>
-              {GRID_COL_DEFS.map((col, i) => (
-                <th
-                  key={col}
-                  className={cn(
-                    'font-bold p-1 px-2 border-r border-white/20 relative',
-                    i === 0 && 'sticky left-0 z-30 bg-yg-dark',
-                  )}
-                >
-                  <span className="block overflow-hidden text-ellipsis whitespace-nowrap">
-                    {col}
-                  </span>
-                  {i < GRID_COL_DEFS.length - 1 && (
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-white/40 active:bg-white/70 transition-colors duration-150 touch-none"
-                      onMouseDown={onResizeStart(i)}
-                      onTouchStart={onResizeStart(i)}
-                    />
-                  )}
-                </th>
+        {loading ? (
+          <div className="flex items-center justify-center h-full min-h-[200px]">
+            <Loader2 className="w-6 h-6 text-yg-royal animate-spin" />
+            <span className="ml-2 text-sm text-gray-600">Carregando movimentos...</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-2">
+            <AlertTriangle className="w-6 h-6 text-red-500" />
+            <span className="text-sm text-red-600">{error}</span>
+            <button
+              onClick={() => fetchMovimentos()}
+              className="text-xs text-yg-royal underline hover:opacity-70"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : (
+          <table
+            className="text-[11px] text-left border-collapse"
+            style={{
+              tableLayout: 'fixed',
+              width: colWidths.reduce((a: number, b: number) => a + b, 0),
+            }}
+          >
+            <colgroup>
+              {colWidths.map((cw: number, i: number) => (
+                <col key={i} style={{ width: cw }} />
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {v1Movimentos.length === 0 && (
+            </colgroup>
+            <thead className="bg-yg-dark text-white sticky top-0 z-20">
               <tr>
-                <td colSpan={GRID_COL_DEFS.length} className="text-center text-gray-500 py-8">
-                  Nenhum registro encontrado.
-                </td>
+                {GRID_COL_DEFS.map((col, i) => (
+                  <th
+                    key={col}
+                    className={cn(
+                      'font-bold p-1 px-2 border-r border-white/20 relative',
+                      i === 0 && 'sticky left-0 z-30 bg-yg-dark',
+                    )}
+                  >
+                    <span className="block overflow-hidden text-ellipsis whitespace-nowrap">
+                      {col}
+                    </span>
+                    {i < GRID_COL_DEFS.length - 1 && (
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-white/40 active:bg-white/70 transition-colors duration-150 touch-none"
+                        onMouseDown={onResizeStart(i)}
+                        onTouchStart={onResizeStart(i)}
+                      />
+                    )}
+                  </th>
+                ))}
               </tr>
-            )}
-            {v1Movimentos.map((row) => {
-              const cells = [
-                row.idmov,
-                row.ano,
-                (row.mes || '').toString().padStart(2, '0'),
-                (row.dia || '').toString().padStart(2, '0'),
-                row.idforn,
-                row.fornecedorNome,
-                row.idben,
-                row.beneficiarioNome,
-                row.idmoeda,
-                row.moedaSimbolo,
-                Number(row.valor || 0).toFixed(2),
-                row.cartao,
-                row.idtipodoc,
-                row.tipoDocDesc,
-                row.idpag,
-                row.pagadorNome,
-                row.situacao,
-                row.idcat,
-                row.categoriaDesc,
-                row.idnat,
-                row.naturezaDesc,
-              ]
-              return (
-                <tr
-                  key={row.id}
-                  onClick={() => handleRowClick(row)}
-                  className="group border-b border-gray-200 hover:bg-sky-100 cursor-pointer"
-                >
-                  {cells.map((cell, i) => (
-                    <td
-                      key={i}
-                      className={cn(
-                        'p-1 px-2 border-r overflow-hidden text-ellipsis whitespace-nowrap',
-                        i === 0 && 'sticky left-0 z-10 bg-white group-hover:bg-sky-100',
-                        i === 10 && 'text-right',
-                      )}
-                    >
-                      {cell}
-                    </td>
-                  ))}
+            </thead>
+            <tbody>
+              {v1Movimentos.length === 0 && (
+                <tr>
+                  <td colSpan={GRID_COL_DEFS.length} className="text-center text-gray-500 py-8">
+                    Nenhum registro encontrado.
+                  </td>
                 </tr>
-              )
-            })}
-            {v1Movimentos.length > 0 &&
-              [...Array(10)].map((_, i) => (
-                <tr key={`empty-${i}`} className="border-b border-gray-200 h-[24px]">
-                  {[...Array(GRID_COL_DEFS.length)].map((_, j) => (
-                    <td
-                      key={j}
-                      className={cn('border-r', j === 0 && 'sticky left-0 z-10 bg-white')}
-                    ></td>
-                  ))}
-                </tr>
-              ))}
-          </tbody>
-        </table>
+              )}
+              {v1Movimentos.map((row: any) => {
+                const cells = [
+                  row.idmov,
+                  row.ano,
+                  (row.mes || '').toString().padStart(2, '0'),
+                  (row.dia || '').toString().padStart(2, '0'),
+                  row.idforn,
+                  row.fornecedorNome,
+                  row.idben,
+                  row.beneficiarioNome,
+                  row.idmoeda,
+                  row.moedaNome,
+                  Number(row.valor || 0).toFixed(2),
+                  row.cartao,
+                  row.idtipodoc,
+                  row.tipoDocNome,
+                  row.idpag,
+                  row.pagadorNome,
+                  row.situacao,
+                  row.idcat,
+                  row.categoriaNome,
+                  row.idnat,
+                  row.naturezaNome,
+                ]
+                return (
+                  <tr
+                    key={row.id}
+                    onClick={() => handleRowClick(row)}
+                    className="group border-b border-gray-200 hover:bg-sky-100 cursor-pointer"
+                  >
+                    {cells.map((cell, i) => (
+                      <td
+                        key={i}
+                        className={cn(
+                          'p-1 px-2 border-r overflow-hidden text-ellipsis whitespace-nowrap',
+                          i === 0 && 'sticky left-0 z-10 bg-white group-hover:bg-sky-100',
+                          i === 10 && 'text-right',
+                        )}
+                      >
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                )
+              })}
+              {v1Movimentos.length > 0 &&
+                [...Array(10)].map((_, i) => (
+                  <tr key={`empty-${i}`} className="border-b border-gray-200 h-[24px]">
+                    {[...Array(GRID_COL_DEFS.length)].map((_, j) => (
+                      <td
+                        key={j}
+                        className={cn('border-r', j === 0 && 'sticky left-0 z-10 bg-white')}
+                      ></td>
+                    ))}
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        )}
       </div>
+
       <div className="mt-2">
         <h3 className="text-sm font-semibold text-yg-dark mb-1">Entrada de Objetos</h3>
         <ObjetoEntrySection />
@@ -773,7 +782,7 @@ export default function Index() {
                 </tr>
               </thead>
               <tbody>
-                {lookupData.data.map((row: any, i) => (
+                {lookupData.data.map((row: any, i: number) => (
                   <tr
                     key={i}
                     className="hover:bg-blue-100 cursor-pointer"

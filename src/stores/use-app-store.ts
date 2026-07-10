@@ -1,7 +1,8 @@
-import { create } from 'zustand'
+import { useSyncExternalStore } from 'react'
 import { api } from '@/services/api'
 
 interface AppState {
+  movimentos: any[]
   fornecedores: any[]
   beneficiarios: any[]
   moedas: any[]
@@ -10,14 +11,12 @@ interface AppState {
   pagadores: any[]
   categorias: any[]
   naturezas: any[]
-  movimentos: any[]
-  moveobjetos: any[]
   loading: boolean
-  fetchLookups: () => Promise<void>
-  fetchMovimentos: () => Promise<void>
+  error: string | null
 }
 
-export const useAppStore = create<AppState>((set) => ({
+const initialState: AppState = {
+  movimentos: [],
   fornecedores: [],
   beneficiarios: [],
   moedas: [],
@@ -26,44 +25,92 @@ export const useAppStore = create<AppState>((set) => ({
   pagadores: [],
   categorias: [],
   naturezas: [],
-  movimentos: [],
-  moveobjetos: [],
   loading: false,
-  fetchLookups: async () => {
-    set({ loading: true })
-    try {
-      const [f, b, m, o, t, p, c, n] = await Promise.all([
-        api.fornecedores.list(),
-        api.beneficiarios.list(),
-        api.moedas.list(),
-        api.objetos.list(),
-        api.tipodocs.list(),
-        api.pagadores.list(),
-        api.categorias.list(),
-        api.naturezas.list(),
-      ])
-      set({
-        fornecedores: f,
-        beneficiarios: b,
-        moedas: m,
-        objetos: o,
-        tipodocs: t,
-        pagadores: p,
-        categorias: c,
-        naturezas: n,
-        loading: false,
-      })
-    } catch (e) {
-      console.error(e)
-      set({ loading: false })
-    }
-  },
-  fetchMovimentos: async () => {
-    try {
-      const [movs, mobjs] = await Promise.all([api.movimentos.list(), api.moveobjetos.list()])
-      set({ movimentos: movs, moveobjetos: mobjs })
-    } catch (e) {
-      console.error(e)
-    }
-  },
-}))
+  error: null,
+}
+
+let currentState = initialState
+const listeners = new Set<() => void>()
+
+function notify() {
+  listeners.forEach((l) => l())
+}
+
+function updateState(updater: (prev: AppState) => AppState) {
+  currentState = updater(currentState)
+  notify()
+}
+
+async function fetchLookups() {
+  try {
+    const [
+      fornecedores,
+      beneficiarios,
+      moedas,
+      objetos,
+      tipodocs,
+      pagadores,
+      categorias,
+      naturezas,
+    ] = await Promise.all([
+      api.fornecedores.list(),
+      api.beneficiarios.list(),
+      api.moedas.list(),
+      api.objetos.list(),
+      api.tipodocs.list(),
+      api.pagadores.list(),
+      api.categorias.list(),
+      api.naturezas.list(),
+    ])
+    updateState((prev) => ({
+      ...prev,
+      fornecedores,
+      beneficiarios,
+      moedas,
+      objetos,
+      tipodocs,
+      pagadores,
+      categorias,
+      naturezas,
+    }))
+  } catch (err: any) {
+    updateState((prev) => ({ ...prev, error: 'Erro ao carregar dados auxiliares' }))
+  }
+}
+
+async function fetchMovimentos() {
+  updateState((prev) => ({ ...prev, loading: true, error: null }))
+  try {
+    const movimentos = await api.movimentos.list()
+    updateState((prev) => ({ ...prev, movimentos, loading: false }))
+  } catch (err: any) {
+    updateState((prev) => ({
+      ...prev,
+      movimentos: [],
+      loading: false,
+      error: 'Erro ao carregar movimentos. Verifique a conexão com o servidor.',
+    }))
+  }
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+function getSnapshot() {
+  return currentState
+}
+
+export function useAppStore() {
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+  return {
+    ...snapshot,
+    fetchLookups,
+    fetchMovimentos,
+  }
+}
+
+export default useAppStore
