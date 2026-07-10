@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-10T17:20:34.703Z",
+  "generatedAt": "2026-07-10T21:51:55.571Z",
   "collections": [
     {
       "name": "users",
@@ -402,50 +402,16 @@
       },
       "fields": [
         {
-          "name": "idmoveobj",
-          "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
           "name": "idmov",
-          "type": "relation",
-          "required": false,
-          "system": false,
-          "collectionRef": "01movimento"
+          "type": "number",
+          "required": true,
+          "system": false
         },
         {
           "name": "idobj",
-          "type": "relation",
-          "required": false,
-          "system": false,
-          "collectionRef": "06objeto"
-        },
-        {
-          "name": "quantidade",
           "type": "number",
-          "required": false,
+          "required": true,
           "system": false
-        },
-        {
-          "name": "valor_unitario",
-          "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []

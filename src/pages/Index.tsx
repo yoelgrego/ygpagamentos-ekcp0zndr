@@ -1,18 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Upload, Trash2, Loader2, AlertTriangle } from 'lucide-react'
+import { Upload, Loader2, AlertTriangle } from 'lucide-react'
 import { YgLabel, YgInput, YgButton, YgFieldGroup } from '@/components/yg-ui'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from '@/components/ui/alert-dialog'
 import { useAppStore } from '@/stores/use-app-store'
 import { api } from '@/services/api'
 import { toast } from 'sonner'
@@ -129,9 +119,6 @@ export default function Index() {
     isOpen: false,
     type: null,
   })
-  const [showClearDialog, setShowClearDialog] = useState(false)
-  const [isClearing, setIsClearing] = useState(false)
-
   const { colWidths, onResizeStart } = useResizableColumns({
     initialWidths: INITIAL_COL_WIDTHS,
     minWidth: 40,
@@ -343,21 +330,6 @@ export default function Index() {
   const handleNovo = () => setFormData(defaultForm)
   const handleLimpar = () => handleNovo()
 
-  const handleClearData = async () => {
-    setIsClearing(true)
-    try {
-      await api.clearMovimentos()
-      toast.success('Dados limpos com sucesso')
-      handleNovo()
-      fetchMovimentos()
-    } catch (e) {
-      toast.error('Erro ao limpar dados. Verifique se está autenticado.')
-    } finally {
-      setIsClearing(false)
-      setShowClearDialog(false)
-    }
-  }
-
   const handleExcluir = async () => {
     if (!formData.id) return toast.error('Nenhum movimento selecionado')
     try {
@@ -429,13 +401,6 @@ export default function Index() {
           <Upload className="w-4 h-4 text-yg-gold group-hover:text-white transition-colors" />
           <span className="text-[12px] font-bold">Acessar Importação</span>
         </Link>
-        <button
-          onClick={() => setShowClearDialog(true)}
-          className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 hover:bg-red-700 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-          <span className="text-[12px] font-bold">Limpar Dados</span>
-        </button>
       </div>
 
       <div className="flex gap-2 shrink-0">
@@ -806,35 +771,6 @@ export default function Index() {
           </div>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
-        <AlertDialogContent className="bg-white border-yg-dark rounded-none">
-          <AlertDialogHeader className="bg-yg-dark text-white p-2 -mx-6 -mt-6 mb-2">
-            <AlertDialogTitle className="text-sm font-bold flex items-center gap-2">
-              <Trash2 className="w-4 h-4 text-yg-gold" />
-              Confirmar Exclusão de Dados
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-white/80 text-xs pt-1">
-              Tem certeza de que deseja limpar todos os dados? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex gap-2">
-            <AlertDialogCancel
-              className="border-yg-dark text-yg-dark rounded-none"
-              disabled={isClearing}
-            >
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleClearData}
-              disabled={isClearing}
-              className="bg-red-600 text-white hover:bg-red-700 rounded-none"
-            >
-              {isClearing ? 'Limpando...' : 'Sim, limpar tudo'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
