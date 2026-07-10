@@ -20,4 +20,5 @@ export const api = {
     create: (data: any) => pb.collection('02moveobjeto').create(data),
     delete: (id: string) => pb.collection('02moveobjeto').delete(id),
   },
+  clearMovimentos: () => pb.send('/backend/v1/clear-movimentos', { method: 'POST' }),
 }

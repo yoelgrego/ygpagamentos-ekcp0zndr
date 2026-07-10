@@ -118,6 +118,9 @@ export default function Index() {
     type: null,
   })
 
+  const [showClearDialog, setShowClearDialog] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
+
   const { colWidths, onResizeStart } = useResizableColumns({
     initialWidths: INITIAL_COL_WIDTHS,
     minWidth: 40,
@@ -361,6 +364,21 @@ export default function Index() {
 
   const handleLimpar = () => handleNovo()
 
+  const handleClearData = async () => {
+    setIsClearing(true)
+    try {
+      await api.clearMovimentos()
+      toast.success('Dados limpos com sucesso')
+      handleNovo()
+      fetchMovimentos()
+    } catch (e) {
+      toast.error('Erro ao limpar dados')
+    } finally {
+      setIsClearing(false)
+      setShowClearDialog(false)
+    }
+  }
+
   const handleExcluir = async () => {
     if (!formData.id) return toast.error('Nenhum movimento selecionado')
     try {
@@ -417,13 +435,22 @@ export default function Index() {
 
   return (
     <div className="flex flex-col h-full gap-2 relative">
-      <Link
-        to="/import"
-        className="flex items-center gap-2 bg-yg-dark text-white px-3 py-1.5 hover:bg-blue-800 transition-colors shrink-0 self-start group"
-      >
-        <Upload className="w-4 h-4 text-yg-gold group-hover:text-white transition-colors" />
-        <span className="text-[12px] font-bold">Acessar Importação</span>
-      </Link>
+      <div className="flex items-center gap-2 shrink-0 self-start">
+        <Link
+          to="/import"
+          className="flex items-center gap-2 bg-yg-dark text-white px-3 py-1.5 hover:bg-blue-800 transition-colors group"
+        >
+          <Upload className="w-4 h-4 text-yg-gold group-hover:text-white transition-colors" />
+          <span className="text-[12px] font-bold">Acessar Importação</span>
+        </Link>
+        <button
+          onClick={() => setShowClearDialog(true)}
+          className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 hover:bg-red-700 transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+          <span className="text-[12px] font-bold">Limpar Dados</span>
+        </button>
+      </div>
       <div className="flex gap-2 shrink-0">
         <div className="flex flex-col gap-2 flex-1 pt-1">
           <div className="flex gap-2">
@@ -631,6 +658,13 @@ export default function Index() {
             </tr>
           </thead>
           <tbody>
+            {v1Movimentos.length === 0 && (
+              <tr>
+                <td colSpan={GRID_COL_DEFS.length} className="text-center text-gray-500 py-8">
+                  Nenhum registro encontrado.
+                </td>
+              </tr>
+            )}
             {v1Movimentos.map((row) => {
               const cells = [
                 row.idmov,
@@ -676,16 +710,17 @@ export default function Index() {
                 </tr>
               )
             })}
-            {[...Array(10)].map((_, i) => (
-              <tr key={`empty-${i}`} className="border-b border-gray-200 h-[24px]">
-                {[...Array(21)].map((_, j) => (
-                  <td
-                    key={j}
-                    className={cn('border-r', j === 0 && 'sticky left-0 z-10 bg-white')}
-                  ></td>
-                ))}
-              </tr>
-            ))}
+            {v1Movimentos.length > 0 &&
+              [...Array(10)].map((_, i) => (
+                <tr key={`empty-${i}`} className="border-b border-gray-200 h-[24px]">
+                  {[...Array(GRID_COL_DEFS.length)].map((_, j) => (
+                    <td
+                      key={j}
+                      className={cn('border-r', j === 0 && 'sticky left-0 z-10 bg-white')}
+                    ></td>
+                  ))}
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
@@ -762,6 +797,35 @@ export default function Index() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+        <AlertDialogContent className="bg-white border-yg-dark rounded-none">
+          <AlertDialogHeader className="bg-yg-dark text-white p-2 -mx-6 -mt-6 mb-2">
+            <AlertDialogTitle className="text-sm font-bold flex items-center gap-2">
+              <Trash2 className="w-4 h-4 text-yg-gold" />
+              Confirmar Exclusão de Dados
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-white/80 text-xs pt-1">
+              Tem certeza de que deseja limpar todos os dados? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex gap-2">
+            <AlertDialogCancel
+              className="border-yg-dark text-yg-dark rounded-none"
+              disabled={isClearing}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearData}
+              disabled={isClearing}
+              className="bg-red-600 text-white hover:bg-red-700 rounded-none"
+            >
+              {isClearing ? 'Limpando...' : 'Sim, limpar tudo'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
