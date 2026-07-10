@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-10T14:39:50.787Z",
+  "generatedAt": "2026-07-10T16:35:42.449Z",
   "collections": [
     {
       "name": "users",
@@ -388,7 +388,7 @@
           "system": false
         }
       ],
-      "indexes": []
+      "indexes": ["CREATE UNIQUE INDEX `idx_01movimento_idm` ON `01movimento` (idm)"]
     },
     {
       "name": "02moveobjeto",

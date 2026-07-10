@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ImportSummary } from '@/services/import'
 import { Button } from '@/components/ui/button'
-import { Download, Copy, CheckCircle, XCircle, FileText } from 'lucide-react'
+import { Download, Copy, CheckCircle, XCircle, FileText, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface ImportResultsProps {
@@ -65,6 +65,13 @@ export function ImportResults({ summary, onReset }: ImportResultsProps) {
           </div>
         </div>
         <div className="flex-1 bg-white border border-gray-400 p-3 flex items-center gap-2">
+          <RefreshCw className="w-5 h-5 text-blue-600" />
+          <div>
+            <p className="text-[10px] text-gray-500">Atualizados</p>
+            <p className="text-lg font-bold text-blue-600">{summary.updated || 0}</p>
+          </div>
+        </div>
+        <div className="flex-1 bg-white border border-gray-400 p-3 flex items-center gap-2">
           <XCircle className="w-5 h-5 text-red-600" />
           <div>
             <p className="text-[10px] text-gray-500">Falhas</p>
@@ -74,7 +81,9 @@ export function ImportResults({ summary, onReset }: ImportResultsProps) {
       </div>
 
       <p className="text-sm text-center text-yg-dark font-semibold py-1">
-        {summary.success} registros importados com sucesso, {summary.failed} falhas encontradas
+        {summary.success} registros importados com sucesso
+        {summary.updated ? `, ${summary.updated} atualizados como duplicatas` : ''},{' '}
+        {summary.failed} falhas encontradas
       </p>
 
       {summary.errors.length > 0 && (

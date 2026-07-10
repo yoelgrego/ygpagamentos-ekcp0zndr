@@ -13,6 +13,7 @@ import {
 import {
   importMovimentos,
   fetchExistingIds,
+  fetchExistingIdmMap,
   clearMovimentos,
   type ImportSummary,
 } from '@/services/import'
@@ -32,11 +33,15 @@ export default function ImportPage() {
   const [summary, setSummary] = useState<ImportSummary | null>(null)
   const [progress, setProgress] = useState({ current: 0, total: 0 })
   const [existingIds, setExistingIds] = useState<ExistingIds | null>(null)
+  const [existingIdmMap, setExistingIdmMap] = useState<Map<number, string> | null>(null)
   const [clearing, setClearing] = useState(false)
 
   useEffect(() => {
-    fetchExistingIds()
-      .then(setExistingIds)
+    Promise.all([fetchExistingIds(), fetchExistingIdmMap()])
+      .then(([ids, idmMap]) => {
+        setExistingIds(ids)
+        setExistingIdmMap(idmMap)
+      })
       .catch(() => {})
   }, [])
 
@@ -75,9 +80,13 @@ export default function ImportPage() {
     setStep('importing')
     setProgress({ current: 0, total: validatedRows.length })
     try {
-      const result = await importMovimentos(validatedRows, (current, total) => {
-        setProgress({ current, total })
-      })
+      const result = await importMovimentos(
+        validatedRows,
+        (current, total) => {
+          setProgress({ current, total })
+        },
+        existingIdmMap || undefined,
+      )
       setSummary(result)
       setStep('results')
     } catch (err: any) {

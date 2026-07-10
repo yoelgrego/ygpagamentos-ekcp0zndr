@@ -10,6 +10,7 @@ export interface FailedRow {
 export interface ImportSummary {
   total: number
   success: number
+  updated: number
   failed: number
   errors: ImportError[]
   failedRows: FailedRow[]
@@ -20,10 +21,12 @@ const BATCH_SIZE = 50
 export async function importMovimentos(
   rows: ValidatedRow[],
   onProgress: (current: number, total: number) => void,
+  existingIdmMap?: Map<number, string>,
 ): Promise<ImportSummary> {
   const errors: ImportError[] = []
   const failedRows: FailedRow[] = []
   let success = 0
+  let updated = 0
 
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, Math.min(i + BATCH_SIZE, rows.length))
@@ -38,14 +41,26 @@ export async function importMovimentos(
         continue
       }
       try {
-        await pb.collection('01movimento').create(row.data)
-        success++
+        const idm = row.data.idm
+        const existingId = existingIdmMap?.get(idm)
+        if (existingId) {
+          await pb.collection('01movimento').update(existingId, row.data)
+          updated++
+        } else {
+          const created = await pb.collection('01movimento').create(row.data)
+          success++
+          if (existingIdmMap) existingIdmMap.set(idm, created.id)
+        }
       } catch (err: any) {
         const fieldErrors = err?.response?.data
         if (fieldErrors && typeof fieldErrors === 'object') {
           const reasons: string[] = []
           for (const [field, detail] of Object.entries(fieldErrors)) {
-            const message = (detail as any)?.message || 'Erro de validação'
+            const detailObj = detail as any
+            const isDuplicateIdm = detailObj?.code === 'validation_not_unique' && field === 'idm'
+            const message = isDuplicateIdm
+              ? `Duplicate ID: ${row.data.idm}`
+              : detailObj?.message || 'Erro de validação'
             reasons.push(message)
             errors.push({
               row: row.rowIndex,
@@ -78,7 +93,14 @@ export async function importMovimentos(
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
 
-  return { total: rows.length, success, failed: errors.length, errors, failedRows }
+  return {
+    total: rows.length,
+    success,
+    updated,
+    failed: failedRows.length,
+    errors,
+    failedRows,
+  }
 }
 
 export async function fetchExistingIds(): Promise<ExistingIds> {
@@ -101,6 +123,17 @@ export async function fetchExistingIds(): Promise<ExistingIds> {
     idcat: new Set(categorias.map((r: any) => r.idcat)),
     idnat: new Set(naturezas.map((r: any) => r.idnat)),
   }
+}
+
+export async function fetchExistingIdmMap(): Promise<Map<number, string>> {
+  const records = await pb.collection('01movimento').getFullList({
+    fields: 'id,idm',
+  })
+  const map = new Map<number, string>()
+  for (const r of records as any[]) {
+    map.set(r.idm, r.id)
+  }
+  return map
 }
 
 export async function clearMovimentos(): Promise<void> {
