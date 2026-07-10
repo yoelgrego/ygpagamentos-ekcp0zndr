@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FileUpload } from '@/components/import/FileUpload'
 import { ColumnMapping } from '@/components/import/ColumnMapping'
 import { ImportResults } from '@/components/import/ImportResults'
@@ -8,10 +8,16 @@ import {
   validateAllRows,
   rowsToObjects,
   type ValidatedRow,
+  type ExistingIds,
 } from '@/lib/import-validation'
-import { importMovimentos, type ImportSummary } from '@/services/import'
+import {
+  importMovimentos,
+  fetchExistingIds,
+  clearMovimentos,
+  type ImportSummary,
+} from '@/services/import'
 import { toast } from 'sonner'
-import { ArrowLeft, ArrowRight, Loader2, Download } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Loader2, Download, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { downloadImportTemplate } from '@/lib/import-template'
 
@@ -25,6 +31,14 @@ export default function ImportPage() {
   const [validatedRows, setValidatedRows] = useState<ValidatedRow[]>([])
   const [summary, setSummary] = useState<ImportSummary | null>(null)
   const [progress, setProgress] = useState({ current: 0, total: 0 })
+  const [existingIds, setExistingIds] = useState<ExistingIds | null>(null)
+  const [clearing, setClearing] = useState(false)
+
+  useEffect(() => {
+    fetchExistingIds()
+      .then(setExistingIds)
+      .catch(() => {})
+  }, [])
 
   const handleFileSelected = async (file: File) => {
     setParsing(true)
@@ -37,7 +51,7 @@ export default function ImportPage() {
       }
       const detected = autoDetectMapping(parsed.headers)
       const objects = rowsToObjects(parsed.headers, parsed.rows)
-      const validated = validateAllRows(objects, detected)
+      const validated = validateAllRows(objects, detected, existingIds || undefined)
       setParsedFile(parsed)
       setMapping(detected)
       setValidatedRows(validated)
@@ -53,7 +67,7 @@ export default function ImportPage() {
     if (!parsedFile) return
     setMapping(newMapping)
     const objects = rowsToObjects(parsedFile.headers, parsedFile.rows)
-    const validated = validateAllRows(objects, newMapping)
+    const validated = validateAllRows(objects, newMapping, existingIds || undefined)
     setValidatedRows(validated)
   }
 
@@ -69,6 +83,19 @@ export default function ImportPage() {
     } catch (err: any) {
       toast.error(err?.message || 'Erro durante importação')
       setStep('mapping')
+    }
+  }
+
+  const handleClearData = async () => {
+    if (!window.confirm('Tem certeza? Todos os registros de movimentos serão excluídos.')) return
+    setClearing(true)
+    try {
+      await clearMovimentos()
+      toast.success('Dados limpos com sucesso')
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao limpar dados')
+    } finally {
+      setClearing(false)
     }
   }
 
@@ -89,12 +116,26 @@ export default function ImportPage() {
       <div className="flex flex-col gap-2 h-full">
         <div className="flex items-center justify-between shrink-0">
           <h2 className="text-sm font-bold text-yg-dark">Importar Movimentos</h2>
-          <Button
-            onClick={downloadImportTemplate}
-            className="h-[28px] text-[11px] font-bold bg-yg-dark hover:bg-blue-800"
-          >
-            <Download className="w-3.5 h-3.5" /> Baixar Modelo
-          </Button>
+          <div className="flex gap-1">
+            <Button
+              onClick={handleClearData}
+              disabled={clearing}
+              className="h-[28px] text-[11px] font-bold bg-red-600 hover:bg-red-700"
+            >
+              {clearing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5" />
+              )}
+              Limpar Dados
+            </Button>
+            <Button
+              onClick={downloadImportTemplate}
+              className="h-[28px] text-[11px] font-bold bg-yg-dark hover:bg-blue-800"
+            >
+              <Download className="w-3.5 h-3.5" /> Baixar Modelo
+            </Button>
+          </div>
         </div>
         <p className="text-[11px] text-gray-600">
           Selecione um arquivo CSV ou XLSX com os dados de movimentos para importação em lote.

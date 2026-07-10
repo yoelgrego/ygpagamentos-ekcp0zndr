@@ -22,6 +22,10 @@ export interface FieldDef {
   max?: number
 }
 
+export type ExistingIds = Record<string, Set<number>>
+
+const ID_FIELDS = ['idfornece', 'idbenef', 'idmoeda', 'idtipo', 'idpaga', 'idcat', 'idnat']
+
 export const IMPORT_FIELDS: FieldDef[] = [
   { key: 'idm', label: 'ID Movimento', type: 'number', required: false },
   { key: 'ano', label: 'Ano', type: 'number', required: true, min: 1000 },
@@ -83,6 +87,7 @@ export function validateRow(
   rowIndex: number,
   row: Record<string, string>,
   mapping: Record<string, string>,
+  existingIds?: ExistingIds,
 ): ValidatedRow {
   const errors: ImportError[] = []
   const data: Record<string, any> = {}
@@ -139,6 +144,15 @@ export function validateRow(
         })
         continue
       }
+      if (existingIds && ID_FIELDS.includes(field.key) && !existingIds[field.key]?.has(num)) {
+        errors.push({
+          row: rowIndex,
+          field: field.key,
+          reason: `${field.label}: ID ${num} não existe na coleção`,
+          value: raw,
+        })
+        continue
+      }
       data[field.key] = num
     } else {
       data[field.key] = raw
@@ -152,8 +166,9 @@ export function validateRow(
 export function validateAllRows(
   rows: Record<string, string>[],
   mapping: Record<string, string>,
+  existingIds?: ExistingIds,
 ): ValidatedRow[] {
-  return rows.map((row, i) => validateRow(i + 1, row, mapping))
+  return rows.map((row, i) => validateRow(i + 1, row, mapping, existingIds))
 }
 
 export function rowsToObjects(headers: string[], rows: string[][]): Record<string, string>[] {

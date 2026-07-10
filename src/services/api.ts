@@ -8,13 +8,9 @@ export const api = {
   tipodocs: { list: () => pb.collection('07tipodoc').getFullList() },
   pagadores: { list: () => pb.collection('08pagador').getFullList() },
   categorias: { list: () => pb.collection('09catego').getFullList() },
-  naturezas: { list: () => pb.collection('10natureza').getFullList({ expand: 'idcat' }) },
+  naturezas: { list: () => pb.collection('10natureza').getFullList() },
   movimentos: {
-    list: () =>
-      pb.collection('01movimento').getFullList({
-        expand: 'idnat.idcat,idforn,idben,idpag,idtipodoc,idmoeda',
-        sort: '-created',
-      }),
+    list: () => pb.collection('01movimento').getFullList({ sort: '-idm' }),
     create: (data: any) => pb.collection('01movimento').create(data),
     update: (id: string, data: any) => pb.collection('01movimento').update(id, data),
     delete: (id: string) => pb.collection('01movimento').delete(id),
