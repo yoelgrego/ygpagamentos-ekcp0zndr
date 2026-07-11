@@ -17,6 +17,8 @@ export const api = {
   },
   moveobjetos: {
     list: () => pb.collection('02moveobjeto').getFullList({ expand: 'idobj' }),
+    listByMov: (idmov: number) =>
+      pb.collection('02moveobjeto').getFullList({ filter: `idmov = ${idmov}` }),
     create: (data: any) => pb.collection('02moveobjeto').create(data),
     delete: (id: string) => pb.collection('02moveobjeto').delete(id),
   },

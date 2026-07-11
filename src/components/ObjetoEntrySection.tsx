@@ -5,10 +5,15 @@ import { useAppStore } from '@/stores/use-app-store'
 import { useResizableColumns } from '@/hooks/use-resizable-columns'
 import { Plus, Trash2, X } from 'lucide-react'
 
-interface PendingObj {
+export interface PendingObj {
   idobj: string
   idobjNum: number
   nobj: string
+}
+
+interface ObjetoEntrySectionProps {
+  items: PendingObj[]
+  onItemsChange: (items: PendingObj[]) => void
 }
 
 const w = (chars: number) => `${chars * 8 + 12}px`
@@ -16,9 +21,8 @@ const w = (chars: number) => `${chars * 8 + 12}px`
 const OBJETO_COL_DEFS = ['Id', 'NObj']
 const INITIAL_OBJ_WIDTHS = [50, 400]
 
-export function ObjetoEntrySection() {
+export function ObjetoEntrySection({ items, onItemsChange }: ObjetoEntrySectionProps) {
   const { objetos } = useAppStore()
-  const [items, setItems] = useState<PendingObj[]>([])
   const [selectedObj, setSelectedObj] = useState<PendingObj | null>(null)
   const [lookupOpen, setLookupOpen] = useState(false)
 
@@ -30,7 +34,7 @@ export function ObjetoEntrySection() {
 
   const handleAdd = () => {
     if (!selectedObj) return
-    setItems((prev) => [...prev, { ...selectedObj }])
+    onItemsChange([...items, { ...selectedObj }])
     setSelectedObj(null)
   }
 
@@ -39,12 +43,12 @@ export function ObjetoEntrySection() {
   }
 
   const handleClear = () => {
-    setItems([])
+    onItemsChange([])
     setSelectedObj(null)
   }
 
   const handleRemoveItem = (index: number) => {
-    setItems((prev) => prev.filter((_, i) => i !== index))
+    onItemsChange(items.filter((_, i) => i !== index))
   }
 
   const handleSelectObj = (row: any) => {

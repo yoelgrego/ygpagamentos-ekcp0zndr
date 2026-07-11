@@ -1,17 +1,19 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import type { RefObject } from 'react'
 import { Link } from 'react-router-dom'
-import { Upload, Loader2, AlertTriangle } from 'lucide-react'
+import { Upload, Loader2, AlertTriangle, Search } from 'lucide-react'
 import { YgLabel, YgInput, YgButton, YgFieldGroup } from '@/components/yg-ui'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAppStore } from '@/stores/use-app-store'
 import { api } from '@/services/api'
 import { toast } from 'sonner'
-import { Search } from 'lucide-react'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
-import { ObjetoEntrySection } from '@/components/ObjetoEntrySection'
+import { ObjetoEntrySection, type PendingObj } from '@/components/ObjetoEntrySection'
+import { ValidationDialog } from '@/components/ValidationDialog'
 import { useResizableColumns } from '@/hooks/use-resizable-columns'
+import { isValidAno, isValidMes, isValidDia, numericOnly } from '@/lib/date-validation'
 
 const w = (chars: number) => `${chars * 8 + 12}px`
 
@@ -93,6 +95,7 @@ export default function Index() {
     fornecedores,
     beneficiarios,
     moedas,
+    objetos,
     tipodocs,
     pagadores,
     categorias,
@@ -116,10 +119,25 @@ export default function Index() {
   })
 
   const [formData, setFormData] = useState(defaultForm)
+  const [objetoItems, setObjetoItems] = useState<PendingObj[]>([])
   const [lookup, setLookup] = useState<{ isOpen: boolean; type: LookupType }>({
     isOpen: false,
     type: null,
   })
+
+  const idRef = useRef<HTMLInputElement>(null)
+  const anoRef = useRef<HTMLInputElement>(null)
+  const mesRef = useRef<HTMLInputElement>(null)
+  const diaRef = useRef<HTMLInputElement>(null)
+
+  const [validationOpen, setValidationOpen] = useState(false)
+  const [validationMessage, setValidationMessage] = useState('')
+  const focusAfterClose = useRef<RefObject<HTMLInputElement> | null>(null)
+
+  useEffect(() => {
+    idRef.current?.focus()
+  }, [])
+
   const { colWidths, onResizeStart } = useResizableColumns({
     initialWidths: INITIAL_COL_WIDTHS,
     minWidth: 40,
@@ -165,6 +183,113 @@ export default function Index() {
       naturezaNome: lookupMaps.natureza.get(row.idnat) || '',
     }))
   }, [movimentos, lookupMaps])
+
+  const showValidation = (message: string, ref: RefObject<HTMLInputElement>) => {
+    focusAfterClose.current = ref
+    setValidationMessage(message)
+    setValidationOpen(true)
+  }
+
+  const handleValidationClose = () => {
+    setValidationOpen(false)
+    const ref = focusAfterClose.current
+    if (ref) {
+      setTimeout(() => ref.current?.focus(), 50)
+    }
+  }
+
+  const handleNumericChange = (field: string, value: string) => {
+    setFormData((p) => ({ ...p, [field]: numericOnly(value) }))
+  }
+
+  const handleRowClick = (row: any) => {
+    setFormData({
+      id: row.id,
+      idmov: row.idmov?.toString() || '',
+      ano: row.ano?.toString() || '',
+      mes: row.mes?.toString() || '',
+      dia: row.dia?.toString() || '',
+      valor: row.valor?.toString() || '',
+      cartao: row.cartao?.toString() || '',
+      situacao: row.situacao || '',
+      idfornNum: row.idforn?.toString() || '',
+      fornName: row.fornecedorNome || '',
+      idbenNum: row.idben?.toString() || '',
+      benName: row.beneficiarioNome || '',
+      idmoedaNum: row.idmoeda?.toString() || '',
+      moedaName: row.moedaNome || '',
+      idtipodocNum: row.idtipodoc?.toString() || '',
+      tipoDocName: row.tipoDocNome || '',
+      idpagNum: row.idpag?.toString() || '',
+      pagadorName: row.pagadorNome || '',
+      idcatNum: row.idcat?.toString() || '',
+      catName: row.categoriaNome || '',
+      idnatNum: row.idnat?.toString() || '',
+      natName: row.naturezaNome || '',
+    })
+  }
+
+  const handleIdBlur = async () => {
+    const idValue = formData.idmov.trim()
+    if (!idValue) return
+    const idNum = parseInt(idValue)
+    if (isNaN(idNum)) return
+
+    const found = v1Movimentos.find((m: any) => m.idmov === idNum)
+    if (found) {
+      handleRowClick(found)
+      try {
+        const moveobjetos = await api.moveobjetos.listByMov(idNum)
+        const objItems: PendingObj[] = moveobjetos.map((mo: any) => {
+          const obj = objetos.find((o: any) => o.idobj === mo.idobj)
+          return {
+            idobj: obj?.id || '',
+            idobjNum: mo.idobj,
+            nobj: obj?.nobj || '',
+          }
+        })
+        setObjetoItems(objItems)
+      } catch {
+        setObjetoItems([])
+      }
+    } else {
+      const maxIdm = movimentos.reduce((max: number, m: any) => Math.max(max, m.idm || 0), 0)
+      setFormData((p) => ({ ...p, idmov: (maxIdm + 1).toString() }))
+      setObjetoItems([])
+    }
+  }
+
+  const handleAnoBlur = () => {
+    const value = formData.ano.trim()
+    if (!value) return
+    if (!isValidAno(value)) {
+      setFormData((p) => ({ ...p, ano: '' }))
+      showValidation(
+        'Dado inválido. Ano deve ser maior ou igual a 1900, usando os quatro dígitos',
+        anoRef,
+      )
+    }
+  }
+
+  const handleMesBlur = () => {
+    const value = formData.mes.trim()
+    if (!value) return
+    if (!isValidMes(value)) {
+      setFormData((p) => ({ ...p, mes: '' }))
+      showValidation('Mês inválido. Digite novamente', mesRef)
+    }
+  }
+
+  const handleDiaBlur = () => {
+    const value = formData.dia.trim()
+    if (!value) return
+    if (!isValidDia(value, formData.ano, formData.mes)) {
+      setFormData((p) => ({ ...p, dia: '' }))
+      showValidation('Dia inválido. Digite novamente', diaRef)
+    }
+  }
+
+  const diaDisabled = !isValidAno(formData.ano) || !isValidMes(formData.mes)
 
   const handleLookup = (type: LookupType) => setLookup({ isOpen: true, type })
 
@@ -301,34 +426,10 @@ export default function Index() {
     }
   }
 
-  const handleRowClick = (row: any) => {
-    setFormData({
-      id: row.id,
-      idmov: row.idmov?.toString() || '',
-      ano: row.ano?.toString() || '',
-      mes: row.mes?.toString() || '',
-      dia: row.dia?.toString() || '',
-      valor: row.valor?.toString() || '',
-      cartao: row.cartao?.toString() || '',
-      situacao: row.situacao || '',
-      idfornNum: row.idforn?.toString() || '',
-      fornName: row.fornecedorNome || '',
-      idbenNum: row.idben?.toString() || '',
-      benName: row.beneficiarioNome || '',
-      idmoedaNum: row.idmoeda?.toString() || '',
-      moedaName: row.moedaNome || '',
-      idtipodocNum: row.idtipodoc?.toString() || '',
-      tipoDocName: row.tipoDocNome || '',
-      idpagNum: row.idpag?.toString() || '',
-      pagadorName: row.pagadorNome || '',
-      idcatNum: row.idcat?.toString() || '',
-      catName: row.categoriaNome || '',
-      idnatNum: row.idnat?.toString() || '',
-      natName: row.naturezaNome || '',
-    })
+  const handleNovo = () => {
+    setFormData(defaultForm)
+    setObjetoItems([])
   }
-
-  const handleNovo = () => setFormData(defaultForm)
   const handleLimpar = () => handleNovo()
 
   const handleExcluir = async () => {
@@ -337,7 +438,7 @@ export default function Index() {
       await api.movimentos.delete(formData.id)
       toast.success('Excluído com sucesso')
       handleNovo()
-    } catch (e) {
+    } catch {
       toast.error('Erro ao excluir')
     }
   }
@@ -410,33 +511,43 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>ID</YgLabel>
               <YgInput
+                ref={idRef}
                 style={{ width: w(7) }}
                 value={formData.idmov}
-                onChange={(e: any) => setFormData({ ...formData, idmov: e.target.value })}
+                onChange={(e: any) => handleNumericChange('idmov', e.target.value)}
+                onBlur={handleIdBlur}
               />
             </YgFieldGroup>
             <YgFieldGroup>
               <YgLabel>Ano</YgLabel>
               <YgInput
+                ref={anoRef}
                 style={{ width: w(4) }}
                 value={formData.ano}
-                onChange={(e: any) => setFormData({ ...formData, ano: e.target.value })}
+                onChange={(e: any) => handleNumericChange('ano', e.target.value)}
+                onBlur={handleAnoBlur}
               />
             </YgFieldGroup>
             <YgFieldGroup>
               <YgLabel>Mes</YgLabel>
               <YgInput
+                ref={mesRef}
                 style={{ width: w(2) }}
                 value={formData.mes}
-                onChange={(e: any) => setFormData({ ...formData, mes: e.target.value })}
+                onChange={(e: any) => handleNumericChange('mes', e.target.value)}
+                onBlur={handleMesBlur}
               />
             </YgFieldGroup>
             <YgFieldGroup>
               <YgLabel>Dia</YgLabel>
               <YgInput
+                ref={diaRef}
                 style={{ width: w(2) }}
                 value={formData.dia}
-                onChange={(e: any) => setFormData({ ...formData, dia: e.target.value })}
+                disabled={diaDisabled}
+                onChange={(e: any) => handleNumericChange('dia', e.target.value)}
+                onBlur={handleDiaBlur}
+                className={cn(diaDisabled && 'bg-gray-200 cursor-not-allowed')}
               />
             </YgFieldGroup>
           </div>
@@ -701,7 +812,7 @@ export default function Index() {
 
       <div className="mt-2">
         <h3 className="text-sm font-semibold text-yg-dark mb-1">Entrada de Objetos</h3>
-        <ObjetoEntrySection />
+        <ObjetoEntrySection items={objetoItems} onItemsChange={setObjetoItems} />
       </div>
 
       <footer className="h-10 bg-yg-dark shrink-0 flex items-center px-1 gap-1 -mx-2 -mb-2 mt-2">
@@ -738,6 +849,12 @@ export default function Index() {
           )
         })}
       </footer>
+
+      <ValidationDialog
+        open={validationOpen}
+        message={validationMessage}
+        onClose={handleValidationClose}
+      />
 
       <Dialog
         open={lookup.isOpen}
