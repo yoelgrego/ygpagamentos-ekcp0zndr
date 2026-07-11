@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useAppStore } from '@/stores/use-app-store'
 import { api } from '@/services/api'
 import { toast } from 'sonner'
+import { Search } from 'lucide-react'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
@@ -704,25 +705,38 @@ export default function Index() {
       </div>
 
       <footer className="h-10 bg-yg-dark shrink-0 flex items-center px-1 gap-1 -mx-2 -mb-2 mt-2">
-        {[
-          { label: 'Novo', action: handleNovo },
-          { label: 'Gravar', action: handleGravar },
-          { label: 'Excluir', action: handleExcluir },
-          { label: 'Limpar', action: handleLimpar },
-          {
-            label: 'Relatório',
-            action: () => toast.info('Relatório não implementado nesta versão.'),
-          },
-          { label: 'Análise', action: () => toast.info('Análise não implementada nesta versão.') },
-        ].map((btn) => (
-          <button
-            key={btn.label}
-            onClick={btn.action}
-            className="flex-1 h-full flex items-center justify-center text-yg-gold font-bold text-[12px] border-r border-white/20 last:border-r-0 hover:bg-white/10 transition-colors"
-          >
-            {btn.label}
-          </button>
-        ))}
+        {(
+          [
+            { label: 'Novo', action: handleNovo },
+            { label: 'Gravar', action: handleGravar },
+            {
+              label: 'Consultar',
+              action: () => toast.info('Consulta será implementada em breve.'),
+              icon: Search,
+            },
+            { label: 'Limpar', action: handleLimpar },
+            {
+              label: 'Relatório',
+              action: () => toast.info('Relatório não implementado nesta versão.'),
+            },
+            {
+              label: 'Análise',
+              action: () => toast.info('Análise não implementada nesta versão.'),
+            },
+          ] as Array<{ label: string; action: () => void; icon?: typeof Search }>
+        ).map((btn) => {
+          const Icon = btn.icon
+          return (
+            <button
+              key={btn.label}
+              onClick={btn.action}
+              className="flex-1 h-full flex items-center justify-center gap-1 text-yg-gold font-bold text-[12px] border-r border-white/20 last:border-r-0 hover:bg-white/10 transition-colors"
+            >
+              {Icon ? <Icon className="w-3 h-3" /> : null}
+              {btn.label}
+            </button>
+          )
+        })}
       </footer>
 
       <Dialog
