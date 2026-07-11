@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-11T14:41:53.600Z",
+  "generatedAt": "2026-07-11T18:19:09.075Z",
   "collections": [
     {
       "name": "users",
@@ -229,12 +229,6 @@
           "name": "nobj",
           "type": "text",
           "required": true,
-          "system": false
-        },
-        {
-          "name": "descr",
-          "type": "text",
-          "required": false,
           "system": false
         }
       ],

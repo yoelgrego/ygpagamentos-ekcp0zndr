@@ -4,7 +4,6 @@ export interface ObjetoRecord {
   id: string
   idobj: number
   nobj: string
-  descr: string
   created: string
   updated: string
 }
@@ -15,14 +14,11 @@ export const getObjetos = async (): Promise<ObjetoRecord[]> => {
   })
 }
 
-export const createObjeto = async (data: { idobj: number; nobj: string; descr?: string }) => {
+export const createObjeto = async (data: { idobj: number; nobj: string }) => {
   return await pb.collection('06objeto').create(data)
 }
 
-export const updateObjeto = async (
-  id: string,
-  data: Partial<{ idobj: number; nobj: string; descr: string }>,
-) => {
+export const updateObjeto = async (id: string, data: Partial<{ idobj: number; nobj: string }>) => {
   return await pb.collection('06objeto').update(id, data)
 }
 

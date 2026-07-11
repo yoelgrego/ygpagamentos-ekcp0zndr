@@ -9,13 +9,12 @@ interface PendingObj {
   idobj: string
   idobjNum: number
   nobj: string
-  descr: string
 }
 
 const w = (chars: number) => `${chars * 8 + 12}px`
 
-const OBJETO_COL_DEFS = ['Id', 'NObj', 'Descr']
-const INITIAL_OBJ_WIDTHS = [50, 120, 300]
+const OBJETO_COL_DEFS = ['Id', 'NObj']
+const INITIAL_OBJ_WIDTHS = [50, 400]
 
 export function ObjetoEntrySection() {
   const { objetos } = useAppStore()
@@ -26,7 +25,7 @@ export function ObjetoEntrySection() {
   const { colWidths, onResizeStart } = useResizableColumns({
     initialWidths: INITIAL_OBJ_WIDTHS,
     minWidth: 40,
-    maxWidth: 600,
+    maxWidth: 1200,
   })
 
   const handleAdd = () => {
@@ -53,7 +52,6 @@ export function ObjetoEntrySection() {
       idobj: row.id,
       idobjNum: row.idobj,
       nobj: row.nobj,
-      descr: row.descr || '',
     })
     setLookupOpen(false)
   }
@@ -100,7 +98,7 @@ export function ObjetoEntrySection() {
         </div>
       </div>
 
-      <div className="h-[50px] overflow-auto yg-scrollbar border border-gray-400 bg-white shadow-inner">
+      <div className="h-[80px] overflow-auto yg-scrollbar border border-gray-400 bg-white shadow-inner">
         <table
           className="text-[11px] text-left border-collapse"
           style={{ tableLayout: 'fixed', width: colWidths.reduce((a, b) => a + b, 0) + 24 }}
@@ -135,7 +133,6 @@ export function ObjetoEntrySection() {
               <tr key={i} className="border-b border-gray-200 hover:bg-sky-50">
                 <td className="p-1 border-r truncate">{item.idobjNum}</td>
                 <td className="p-1 border-r truncate">{item.nobj}</td>
-                <td className="p-1 border-r truncate">{item.descr}</td>
                 <td className="p-1 text-center">
                   <button
                     onClick={() => handleRemoveItem(i)}
@@ -148,7 +145,7 @@ export function ObjetoEntrySection() {
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={4} className="p-1 text-center text-gray-400 text-[10px]">
+                <td colSpan={3} className="p-1 text-center text-gray-400 text-[10px]">
                   Nenhum item adicionado.
                 </td>
               </tr>
@@ -168,7 +165,6 @@ export function ObjetoEntrySection() {
                 <tr>
                   <th className="p-1 border border-gray-300 font-bold">ID</th>
                   <th className="p-1 border border-gray-300 font-bold">NObj</th>
-                  <th className="p-1 border border-gray-300 font-bold">Descr</th>
                 </tr>
               </thead>
               <tbody>
@@ -180,12 +176,11 @@ export function ObjetoEntrySection() {
                   >
                     <td className="p-1 border">{row.idobj}</td>
                     <td className="p-1 border">{row.nobj}</td>
-                    <td className="p-1 border">{row.descr}</td>
                   </tr>
                 ))}
                 {objetos.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="p-4 text-center text-gray-500">
+                    <td colSpan={2} className="p-4 text-center text-gray-500">
                       Nenhum registro encontrado.
                     </td>
                   </tr>
