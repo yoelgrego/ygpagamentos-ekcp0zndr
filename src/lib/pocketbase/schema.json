@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-11T20:07:52.917Z",
+  "generatedAt": "2026-07-13T17:53:27.632Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -60,14 +65,18 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onUpdate"]
+          "autodateTriggers": [
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -382,7 +391,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX `idx_01movimento_idm` ON `01movimento` (idm)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX `idx_01movimento_idm` ON `01movimento` (idm)"
+      ]
     },
     {
       "name": "02moveobjeto",
@@ -406,65 +417,6 @@
           "type": "number",
           "required": true,
           "system": false
-        }
-      ],
-      "indexes": []
-    },
-    {
-      "name": "passagem",
-      "type": "base",
-      "apiRules": {
-        "list": "",
-        "view": "",
-        "create": "",
-        "update": "",
-        "delete": ""
-      },
-      "fields": [
-        {
-          "name": "idpassagem",
-          "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "idmov",
-          "type": "relation",
-          "required": false,
-          "system": false,
-          "collectionRef": "01movimento"
-        },
-        {
-          "name": "trecho",
-          "type": "text",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "data_viagem",
-          "type": "date",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "passageiro",
-          "type": "text",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []
