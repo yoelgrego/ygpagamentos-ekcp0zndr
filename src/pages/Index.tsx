@@ -6,6 +6,7 @@ import { YgLabel, YgInput, YgButton, YgFieldGroup } from '@/components/yg-ui'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAppStore } from '@/stores/use-app-store'
 import { api } from '@/services/api'
+import pb from '@/lib/pocketbase/client'
 import { toast } from 'sonner'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -13,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { ObjetoEntrySection, type PendingObj } from '@/components/ObjetoEntrySection'
 import { ValidationDialog } from '@/components/ValidationDialog'
 import { useResizableColumns } from '@/hooks/use-resizable-columns'
+import { FornecedorModal } from '@/components/FornecedorModal'
 import { isValidAno, isValidMes, isValidDia, numericOnly } from '@/lib/date-validation'
 
 const w = (chars: number) => `${chars * 8 + 12}px`
@@ -129,6 +131,7 @@ export default function Index() {
   const anoRef = useRef<HTMLInputElement>(null)
   const mesRef = useRef<HTMLInputElement>(null)
   const diaRef = useRef<HTMLInputElement>(null)
+  const fornIdRef = useRef<HTMLInputElement>(null)
 
   const [validationOpen, setValidationOpen] = useState(false)
   const [validationMessage, setValidationMessage] = useState('')
@@ -289,7 +292,49 @@ export default function Index() {
     }
   }
 
+  const handleIdFornBlur = async () => {
+    const val = formData.idfornNum.trim()
+    if (!val) return
+    const num = parseInt(val)
+    if (isNaN(num)) {
+      setFormData((p) => ({ ...p, idfornNum: '', fornName: '' }))
+      return
+    }
+
+    try {
+      const found = await pb
+        .collection('03fornecedor')
+        .getFirstListItem(`idfornece = ${num}`, { requestKey: null })
+      setFormData((p) => ({ ...p, fornName: found.nofornece }))
+    } catch (err) {
+      setFormData((p) => ({ ...p, idfornNum: '', fornName: '' }))
+      showValidation('Código inválido. Consulte a base de dados usando o botão.', fornIdRef)
+    }
+  }
+
   const diaDisabled = !isValidAno(formData.ano) || !isValidMes(formData.mes)
+
+  const [fornModalState, setFornModalState] = useState<{
+    open: boolean
+    resolve?: (val: any) => void
+  }>({ open: false })
+
+  const openFornecedorModal = () => {
+    return new Promise<{ codigo: string; valor: string } | null>((resolve) => {
+      setFornModalState({ open: true, resolve })
+    })
+  }
+
+  const handleFornecedorSearch = async () => {
+    const result = await openFornecedorModal()
+    if (result) {
+      setFormData((p) => ({
+        ...p,
+        idfornNum: result.codigo,
+        fornName: result.valor,
+      }))
+    }
+  }
 
   const handleLookup = (type: LookupType) => setLookup({ isOpen: true, type })
 
@@ -556,13 +601,20 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>Fornecedor</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(6) }} value={formData.idfornNum} readOnly />
-                <YgButton onClick={() => handleLookup('fornecedor')}>?</YgButton>
+                <YgInput
+                  ref={fornIdRef}
+                  style={{ width: w(6) }}
+                  value={formData.idfornNum}
+                  onChange={(e: any) => handleNumericChange('idfornNum', e.target.value)}
+                  onBlur={handleIdFornBlur}
+                />
+                <YgButton onClick={handleFornecedorSearch}>?</YgButton>
                 <YgInput
                   style={{ width: w(30) }}
                   value={formData.fornName}
                   readOnly
-                  className="bg-gray-50 ml-1"
+                  tabIndex={-1}
+                  className="bg-gray-50 ml-1 pointer-events-none select-none"
                 />
               </div>
             </YgFieldGroup>
@@ -854,6 +906,18 @@ export default function Index() {
         open={validationOpen}
         message={validationMessage}
         onClose={handleValidationClose}
+      />
+
+      <FornecedorModal
+        open={fornModalState.open}
+        onClose={() => {
+          fornModalState.resolve?.(null)
+          setFornModalState({ open: false })
+        }}
+        onSelect={(data) => {
+          fornModalState.resolve?.(data)
+          setFornModalState({ open: false })
+        }}
       />
 
       <Dialog
