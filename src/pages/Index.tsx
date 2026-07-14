@@ -123,6 +123,7 @@ export default function Index() {
   const diaRef = useRef<HTMLInputElement>(null)
   const fornIdRef = useRef<HTMLInputElement>(null)
   const benIdRef = useRef<HTMLInputElement>(null)
+  const moedaIdRef = useRef<HTMLInputElement>(null)
   const tipodocIdRef = useRef<HTMLInputElement>(null)
   const pagIdRef = useRef<HTMLInputElement>(null)
   const catIdRef = useRef<HTMLInputElement>(null)
@@ -509,10 +510,14 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>Moeda</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(3) }} value={formData.idmoedaNum} readOnly />
-                <YgButton onClick={() => toast.info('Moeda será implementada em breve.')}>
-                  ?
-                </YgButton>
+                <YgInput
+                  ref={moedaIdRef}
+                  style={{ width: w(3) }}
+                  value={formData.idmoedaNum}
+                  onChange={(e: any) => handleNumericChange('idmoedaNum', e.target.value)}
+                  onBlur={() => handleEntityIdBlur('moeda', formData.idmoedaNum, moedaIdRef)}
+                />
+                <YgButton onClick={() => openEntityModal('moeda')}>?</YgButton>
                 <YgInput
                   style={{ width: w(10) }}
                   value={formData.moedaName}

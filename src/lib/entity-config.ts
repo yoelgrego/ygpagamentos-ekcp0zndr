@@ -13,6 +13,13 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
     nameField: 'nobenef',
     title: 'Beneficiário',
   },
+  moeda: {
+    collection: '05moeda',
+    idField: 'idmoeda',
+    nameField: 'nomoeda',
+    title: 'Seleção de Moeda',
+    requiredNameMessage: 'Nome da moeda é OBRIGATÓRIO',
+  },
   tipodoc: {
     collection: '07tipodoc',
     idField: 'idtipo',
@@ -48,6 +55,7 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
 export const FORM_FIELD_MAP: Record<string, { idField: string; nameField: string }> = {
   fornecedor: { idField: 'idfornNum', nameField: 'fornName' },
   beneficiario: { idField: 'idbenNum', nameField: 'benName' },
+  moeda: { idField: 'idmoedaNum', nameField: 'moedaName' },
   tipodoc: { idField: 'idtipodocNum', nameField: 'tipoDocName' },
   pagador: { idField: 'idpagNum', nameField: 'pagadorName' },
   categoria: { idField: 'idcatNum', nameField: 'catName' },

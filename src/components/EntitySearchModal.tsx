@@ -10,6 +10,7 @@ export interface EntityConfig {
   idField: string
   nameField: string
   title: string
+  requiredNameMessage?: string
 }
 
 export interface EntitySearchModalProps {
@@ -114,7 +115,7 @@ export function EntitySearchModal({ open, onClose, onSelect, config }: EntitySea
 
     if (!newName.trim()) {
       setLoading(false)
-      setValidationMsg(`Nome do ${config.title} é OBRIGATÓRIO`)
+      setValidationMsg(config.requiredNameMessage || `Nome do ${config.title} é OBRIGATÓRIO`)
       setValidationOpen(true)
       return
     }
