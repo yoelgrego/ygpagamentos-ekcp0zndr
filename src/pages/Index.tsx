@@ -3,7 +3,6 @@ import type { RefObject } from 'react'
 import { Link } from 'react-router-dom'
 import { Upload, Loader2, AlertTriangle, Search } from 'lucide-react'
 import { YgLabel, YgInput, YgButton, YgFieldGroup } from '@/components/yg-ui'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAppStore } from '@/stores/use-app-store'
 import { api } from '@/services/api'
 import pb from '@/lib/pocketbase/client'
@@ -13,21 +12,12 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
 import { ObjetoEntrySection, type PendingObj } from '@/components/ObjetoEntrySection'
 import { ValidationDialog } from '@/components/ValidationDialog'
+import { EntitySearchModal } from '@/components/EntitySearchModal'
+import { ENTITY_CONFIGS, FORM_FIELD_MAP } from '@/lib/entity-config'
 import { useResizableColumns } from '@/hooks/use-resizable-columns'
-import { FornecedorModal } from '@/components/FornecedorModal'
 import { isValidAno, isValidMes, isValidDia, numericOnly } from '@/lib/date-validation'
 
 const w = (chars: number) => `${chars * 8 + 12}px`
-
-type LookupType =
-  | 'fornecedor'
-  | 'beneficiario'
-  | 'moeda'
-  | 'tipodoc'
-  | 'pagador'
-  | 'categoria'
-  | 'natureza'
-  | null
 
 const defaultForm = {
   id: '',
@@ -122,8 +112,8 @@ export default function Index() {
 
   const [formData, setFormData] = useState(defaultForm)
   const [objetoItems, setObjetoItems] = useState<PendingObj[]>([])
-  const [lookup, setLookup] = useState<{ isOpen: boolean; type: LookupType }>({
-    isOpen: false,
+  const [entityModal, setEntityModal] = useState<{ open: boolean; type: string | null }>({
+    open: false,
     type: null,
   })
 
@@ -132,6 +122,11 @@ export default function Index() {
   const mesRef = useRef<HTMLInputElement>(null)
   const diaRef = useRef<HTMLInputElement>(null)
   const fornIdRef = useRef<HTMLInputElement>(null)
+  const benIdRef = useRef<HTMLInputElement>(null)
+  const tipodocIdRef = useRef<HTMLInputElement>(null)
+  const pagIdRef = useRef<HTMLInputElement>(null)
+  const catIdRef = useRef<HTMLInputElement>(null)
+  const natIdRef = useRef<HTMLInputElement>(null)
 
   const [validationOpen, setValidationOpen] = useState(false)
   const [validationMessage, setValidationMessage] = useState('')
@@ -292,184 +287,49 @@ export default function Index() {
     }
   }
 
-  const handleIdFornBlur = async () => {
-    const val = formData.idfornNum.trim()
+  const handleEntityIdBlur = async (
+    type: string,
+    idValue: string,
+    ref: RefObject<HTMLInputElement>,
+  ) => {
+    const val = idValue.trim()
     if (!val) return
     const num = parseInt(val)
     if (isNaN(num)) {
-      setFormData((p) => ({ ...p, idfornNum: '', fornName: '' }))
+      const fieldMap = FORM_FIELD_MAP[type]
+      setFormData((p) => ({ ...p, [fieldMap.idField]: '', [fieldMap.nameField]: '' }))
       return
     }
-
+    const config = ENTITY_CONFIGS[type]
     try {
       const found = await pb
-        .collection('03fornecedor')
-        .getFirstListItem(`idfornece = ${num}`, { requestKey: null })
-      setFormData((p) => ({ ...p, fornName: found.nofornece }))
-    } catch (err) {
-      setFormData((p) => ({ ...p, idfornNum: '', fornName: '' }))
-      showValidation('Código inválido. Consulte a base de dados usando o botão.', fornIdRef)
+        .collection(config.collection)
+        .getFirstListItem(`${config.idField} = ${num}`)
+      const fieldMap = FORM_FIELD_MAP[type]
+      setFormData((p) => ({ ...p, [fieldMap.nameField]: found[config.nameField] }))
+    } catch {
+      const fieldMap = FORM_FIELD_MAP[type]
+      setFormData((p) => ({ ...p, [fieldMap.idField]: '', [fieldMap.nameField]: '' }))
+      showValidation('Código inválido. Consulte a base de dados usando o botão.', ref)
     }
+  }
+
+  const openEntityModal = (type: string) => setEntityModal({ open: true, type })
+
+  const handleEntitySelect = (record: { codigo: string; valor: string }) => {
+    if (!entityModal.type) return
+    const fieldMap = FORM_FIELD_MAP[entityModal.type]
+    if (fieldMap) {
+      setFormData((p) => ({
+        ...p,
+        [fieldMap.idField]: record.codigo,
+        [fieldMap.nameField]: record.valor,
+      }))
+    }
+    setEntityModal({ open: false, type: null })
   }
 
   const diaDisabled = !isValidAno(formData.ano) || !isValidMes(formData.mes)
-
-  const [fornModalState, setFornModalState] = useState<{
-    open: boolean
-    resolve?: (val: any) => void
-  }>({ open: false })
-
-  const openFornecedorModal = () => {
-    return new Promise<{ codigo: string; valor: string } | null>((resolve) => {
-      setFornModalState({ open: true, resolve })
-    })
-  }
-
-  const handleFornecedorSearch = async () => {
-    const result = await openFornecedorModal()
-    if (result) {
-      setFormData((p) => ({
-        ...p,
-        idfornNum: result.codigo,
-        fornName: result.valor,
-      }))
-    }
-  }
-
-  const handleLookup = (type: LookupType) => setLookup({ isOpen: true, type })
-
-  const handleSelect = (record: any) => {
-    switch (lookup.type) {
-      case 'fornecedor':
-        setFormData((p) => ({
-          ...p,
-          idfornNum: record.idfornece?.toString() || '',
-          fornName: record.nofornece,
-        }))
-        break
-      case 'beneficiario':
-        setFormData((p) => ({
-          ...p,
-          idbenNum: record.idbenef?.toString() || '',
-          benName: record.nobenef,
-        }))
-        break
-      case 'moeda':
-        setFormData((p) => ({
-          ...p,
-          idmoedaNum: record.idmoeda?.toString() || '',
-          moedaName: record.nomoeda,
-        }))
-        break
-      case 'tipodoc':
-        setFormData((p) => ({
-          ...p,
-          idtipodocNum: record.idtipo?.toString() || '',
-          tipoDocName: record.notipo,
-        }))
-        break
-      case 'pagador':
-        setFormData((p) => ({
-          ...p,
-          idpagNum: record.idpaga?.toString() || '',
-          pagadorName: record.nopaga,
-        }))
-        break
-      case 'categoria':
-        setFormData((p) => ({
-          ...p,
-          idcatNum: record.idcat?.toString() || '',
-          catName: record.nocat,
-        }))
-        break
-      case 'natureza':
-        setFormData((p) => ({
-          ...p,
-          idnatNum: record.idnat?.toString() || '',
-          natName: record.nonat,
-        }))
-        break
-    }
-    setLookup({ isOpen: false, type: null })
-  }
-
-  const lookupData = useMemo(() => {
-    switch (lookup.type) {
-      case 'fornecedor':
-        return { headers: ['ID', 'Nome'], data: fornecedores }
-      case 'beneficiario':
-        return { headers: ['ID', 'Nome'], data: beneficiarios }
-      case 'moeda':
-        return { headers: ['ID', 'Nome', 'Origem'], data: moedas }
-      case 'tipodoc':
-        return { headers: ['ID', 'Nome'], data: tipodocs }
-      case 'pagador':
-        return { headers: ['ID', 'Nome'], data: pagadores }
-      case 'categoria':
-        return { headers: ['ID', 'Nome'], data: categorias }
-      case 'natureza':
-        return { headers: ['ID', 'Nome'], data: naturezas }
-      default:
-        return { headers: [], data: [] }
-    }
-  }, [lookup.type, fornecedores, beneficiarios, moedas, tipodocs, pagadores, categorias, naturezas])
-
-  const renderModalRow = (row: any) => {
-    switch (lookup.type) {
-      case 'fornecedor':
-        return (
-          <>
-            <td className="p-1 border">{row.idfornece}</td>
-            <td className="p-1 border">{row.nofornece}</td>
-          </>
-        )
-      case 'beneficiario':
-        return (
-          <>
-            <td className="p-1 border">{row.idbenef}</td>
-            <td className="p-1 border">{row.nobenef}</td>
-          </>
-        )
-      case 'moeda':
-        return (
-          <>
-            <td className="p-1 border">{row.idmoeda}</td>
-            <td className="p-1 border">{row.nomoeda}</td>
-            <td className="p-1 border">{row.origem}</td>
-          </>
-        )
-      case 'tipodoc':
-        return (
-          <>
-            <td className="p-1 border">{row.idtipo}</td>
-            <td className="p-1 border">{row.notipo}</td>
-          </>
-        )
-      case 'pagador':
-        return (
-          <>
-            <td className="p-1 border">{row.idpaga}</td>
-            <td className="p-1 border">{row.nopaga}</td>
-          </>
-        )
-      case 'categoria':
-        return (
-          <>
-            <td className="p-1 border">{row.idcat}</td>
-            <td className="p-1 border">{row.nocat}</td>
-          </>
-        )
-      case 'natureza':
-        return (
-          <>
-            <td className="p-1 border">{row.idnat}</td>
-            <td className="p-1 border">{row.nonat}</td>
-          </>
-        )
-      default:
-        return null
-    }
-  }
 
   const handleNovo = () => {
     setFormData(defaultForm)
@@ -537,6 +397,8 @@ export default function Index() {
       toast.error(Object.values(fieldErrs).join(', ') || 'Erro ao gravar')
     }
   }
+
+  const nameFieldClass = 'bg-gray-50 ml-1 pointer-events-none select-none'
 
   return (
     <div className="flex flex-col h-full gap-2 relative">
@@ -606,15 +468,15 @@ export default function Index() {
                   style={{ width: w(6) }}
                   value={formData.idfornNum}
                   onChange={(e: any) => handleNumericChange('idfornNum', e.target.value)}
-                  onBlur={handleIdFornBlur}
+                  onBlur={() => handleEntityIdBlur('fornecedor', formData.idfornNum, fornIdRef)}
                 />
-                <YgButton onClick={handleFornecedorSearch}>?</YgButton>
+                <YgButton onClick={() => openEntityModal('fornecedor')}>?</YgButton>
                 <YgInput
                   style={{ width: w(30) }}
                   value={formData.fornName}
                   readOnly
                   tabIndex={-1}
-                  className="bg-gray-50 ml-1 pointer-events-none select-none"
+                  className={nameFieldClass}
                 />
               </div>
             </YgFieldGroup>
@@ -624,13 +486,20 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>Beneficiário</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(4) }} value={formData.idbenNum} readOnly />
-                <YgButton onClick={() => handleLookup('beneficiario')}>?</YgButton>
+                <YgInput
+                  ref={benIdRef}
+                  style={{ width: w(4) }}
+                  value={formData.idbenNum}
+                  onChange={(e: any) => handleNumericChange('idbenNum', e.target.value)}
+                  onBlur={() => handleEntityIdBlur('beneficiario', formData.idbenNum, benIdRef)}
+                />
+                <YgButton onClick={() => openEntityModal('beneficiario')}>?</YgButton>
                 <YgInput
                   style={{ width: w(10) }}
                   value={formData.benName}
                   readOnly
-                  className="bg-gray-50 ml-1"
+                  tabIndex={-1}
+                  className={nameFieldClass}
                 />
               </div>
             </YgFieldGroup>
@@ -641,12 +510,15 @@ export default function Index() {
               <YgLabel>Moeda</YgLabel>
               <div className="flex">
                 <YgInput style={{ width: w(3) }} value={formData.idmoedaNum} readOnly />
-                <YgButton onClick={() => handleLookup('moeda')}>?</YgButton>
+                <YgButton onClick={() => toast.info('Moeda será implementada em breve.')}>
+                  ?
+                </YgButton>
                 <YgInput
                   style={{ width: w(10) }}
                   value={formData.moedaName}
                   readOnly
-                  className="bg-gray-50 ml-1"
+                  tabIndex={-1}
+                  className={nameFieldClass}
                 />
               </div>
             </YgFieldGroup>
@@ -672,26 +544,40 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>Tipo de Documento</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(3) }} value={formData.idtipodocNum} readOnly />
-                <YgButton onClick={() => handleLookup('tipodoc')}>?</YgButton>
+                <YgInput
+                  ref={tipodocIdRef}
+                  style={{ width: w(3) }}
+                  value={formData.idtipodocNum}
+                  onChange={(e: any) => handleNumericChange('idtipodocNum', e.target.value)}
+                  onBlur={() => handleEntityIdBlur('tipodoc', formData.idtipodocNum, tipodocIdRef)}
+                />
+                <YgButton onClick={() => openEntityModal('tipodoc')}>?</YgButton>
                 <YgInput
                   style={{ width: w(15) }}
                   value={formData.tipoDocName}
                   readOnly
-                  className="bg-gray-50 ml-1"
+                  tabIndex={-1}
+                  className={nameFieldClass}
                 />
               </div>
             </YgFieldGroup>
             <YgFieldGroup>
               <YgLabel>Pagador</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(3) }} value={formData.idpagNum} readOnly />
-                <YgButton onClick={() => handleLookup('pagador')}>?</YgButton>
+                <YgInput
+                  ref={pagIdRef}
+                  style={{ width: w(3) }}
+                  value={formData.idpagNum}
+                  onChange={(e: any) => handleNumericChange('idpagNum', e.target.value)}
+                  onBlur={() => handleEntityIdBlur('pagador', formData.idpagNum, pagIdRef)}
+                />
+                <YgButton onClick={() => openEntityModal('pagador')}>?</YgButton>
                 <YgInput
                   style={{ width: w(15) }}
                   value={formData.pagadorName}
                   readOnly
-                  className="bg-gray-50 ml-1"
+                  tabIndex={-1}
+                  className={nameFieldClass}
                 />
               </div>
             </YgFieldGroup>
@@ -709,26 +595,40 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>Categoria</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(4) }} value={formData.idcatNum} readOnly />
-                <YgButton onClick={() => handleLookup('categoria')}>?</YgButton>
+                <YgInput
+                  ref={catIdRef}
+                  style={{ width: w(4) }}
+                  value={formData.idcatNum}
+                  onChange={(e: any) => handleNumericChange('idcatNum', e.target.value)}
+                  onBlur={() => handleEntityIdBlur('categoria', formData.idcatNum, catIdRef)}
+                />
+                <YgButton onClick={() => openEntityModal('categoria')}>?</YgButton>
                 <YgInput
                   style={{ width: w(15) }}
                   value={formData.catName}
                   readOnly
-                  className="bg-gray-50 ml-1"
+                  tabIndex={-1}
+                  className={nameFieldClass}
                 />
               </div>
             </YgFieldGroup>
             <YgFieldGroup>
               <YgLabel>Natureza</YgLabel>
               <div className="flex">
-                <YgInput style={{ width: w(4) }} value={formData.idnatNum} readOnly />
-                <YgButton onClick={() => handleLookup('natureza')}>?</YgButton>
+                <YgInput
+                  ref={natIdRef}
+                  style={{ width: w(4) }}
+                  value={formData.idnatNum}
+                  onChange={(e: any) => handleNumericChange('idnatNum', e.target.value)}
+                  onBlur={() => handleEntityIdBlur('natureza', formData.idnatNum, natIdRef)}
+                />
+                <YgButton onClick={() => openEntityModal('natureza')}>?</YgButton>
                 <YgInput
                   style={{ width: w(15) }}
                   value={formData.natName}
                   readOnly
-                  className="bg-gray-50 ml-1"
+                  tabIndex={-1}
+                  className={nameFieldClass}
                 />
               </div>
             </YgFieldGroup>
@@ -908,64 +808,12 @@ export default function Index() {
         onClose={handleValidationClose}
       />
 
-      <FornecedorModal
-        open={fornModalState.open}
-        onClose={() => {
-          fornModalState.resolve?.(null)
-          setFornModalState({ open: false })
-        }}
-        onSelect={(data) => {
-          fornModalState.resolve?.(data)
-          setFornModalState({ open: false })
-        }}
+      <EntitySearchModal
+        open={entityModal.open}
+        onClose={() => setEntityModal({ open: false, type: null })}
+        onSelect={handleEntitySelect}
+        config={ENTITY_CONFIGS[entityModal.type || 'fornecedor']}
       />
-
-      <Dialog
-        open={lookup.isOpen}
-        onOpenChange={(open) => !open && setLookup({ isOpen: false, type: null })}
-      >
-        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col p-0 gap-0 bg-yg-bg border-yg-dark rounded-none">
-          <DialogHeader className="bg-yg-dark text-white p-2">
-            <DialogTitle className="text-sm font-bold capitalize">
-              Selecionar {lookup.type}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="p-4 overflow-auto yg-scrollbar bg-white">
-            <table className="w-full text-sm text-left border-collapse">
-              <thead className="bg-gray-100 sticky top-0">
-                <tr>
-                  {lookupData.headers.map((h, i) => (
-                    <th key={i} className="p-1 border border-gray-300 font-bold">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {lookupData.data.map((row: any, i: number) => (
-                  <tr
-                    key={i}
-                    className="hover:bg-blue-100 cursor-pointer"
-                    onClick={() => handleSelect(row)}
-                  >
-                    {renderModalRow(row)}
-                  </tr>
-                ))}
-                {lookupData.data.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={lookupData.headers.length}
-                      className="p-4 text-center text-gray-500"
-                    >
-                      Nenhum registro encontrado.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -1,9 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import type { RefObject } from 'react'
 import { YgLabel, YgInput, YgButton, YgFieldGroup } from '@/components/yg-ui'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAppStore } from '@/stores/use-app-store'
 import { useResizableColumns } from '@/hooks/use-resizable-columns'
 import { Plus, Trash2, X } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
+import { EntitySearchModal } from '@/components/EntitySearchModal'
+import { ENTITY_CONFIGS } from '@/lib/entity-config'
+import { ValidationDialog } from '@/components/ValidationDialog'
+import { numericOnly } from '@/lib/date-validation'
 
 export interface PendingObj {
   idobj: string
@@ -25,6 +30,10 @@ export function ObjetoEntrySection({ items, onItemsChange }: ObjetoEntrySectionP
   const { objetos } = useAppStore()
   const [selectedObj, setSelectedObj] = useState<PendingObj | null>(null)
   const [lookupOpen, setLookupOpen] = useState(false)
+  const [validationOpen, setValidationOpen] = useState(false)
+  const [validationMsg, setValidationMsg] = useState('')
+  const objIdRef = useRef<HTMLInputElement>(null)
+  const focusAfterClose = useRef<RefObject<HTMLInputElement> | null>(null)
 
   const { colWidths, onResizeStart } = useResizableColumns({
     initialWidths: INITIAL_OBJ_WIDTHS,
@@ -32,8 +41,52 @@ export function ObjetoEntrySection({ items, onItemsChange }: ObjetoEntrySectionP
     maxWidth: 1200,
   })
 
+  const showValidation = (message: string, ref: RefObject<HTMLInputElement>) => {
+    focusAfterClose.current = ref
+    setValidationMsg(message)
+    setValidationOpen(true)
+  }
+
+  const handleValidationClose = () => {
+    setValidationOpen(false)
+    const ref = focusAfterClose.current
+    if (ref) {
+      setTimeout(() => ref.current?.focus(), 50)
+    }
+  }
+
+  const handleObjIdBlur = async () => {
+    const val = selectedObj?.idobjNum?.toString() || ''
+    if (!val.trim() || val === '0') return
+    const num = selectedObj?.idobjNum
+    if (!num || isNaN(num)) {
+      setSelectedObj(null)
+      return
+    }
+    try {
+      const found = await pb.collection('06objeto').getFirstListItem(`idobj = ${num}`)
+      setSelectedObj({
+        idobj: found.id,
+        idobjNum: found.idobj,
+        nobj: found.nobj,
+      })
+    } catch {
+      setSelectedObj(null)
+      showValidation('Código inválido. Consulte a base de dados usando o botão.', objIdRef)
+    }
+  }
+
+  const handleObjIdChange = (value: string) => {
+    const val = numericOnly(value)
+    if (!val) {
+      setSelectedObj(null)
+      return
+    }
+    setSelectedObj({ idobj: '', idobjNum: parseInt(val) || 0, nobj: '' })
+  }
+
   const handleAdd = () => {
-    if (!selectedObj) return
+    if (!selectedObj || !selectedObj.nobj) return
     onItemsChange([...items, { ...selectedObj }])
     setSelectedObj(null)
   }
@@ -51,11 +104,22 @@ export function ObjetoEntrySection({ items, onItemsChange }: ObjetoEntrySectionP
     onItemsChange(items.filter((_, i) => i !== index))
   }
 
-  const handleSelectObj = (row: any) => {
+  const handleObjetoSelect = async (record: { codigo: string; valor: string }) => {
+    const num = parseInt(record.codigo)
+    const obj = objetos.find((o: any) => o.idobj === num)
+    let objId = obj?.id || ''
+    if (!objId) {
+      try {
+        const found = await pb.collection('06objeto').getFirstListItem(`idobj = ${num}`)
+        objId = found.id
+      } catch {
+        /* id stays empty */
+      }
+    }
     setSelectedObj({
-      idobj: row.id,
-      idobjNum: row.idobj,
-      nobj: row.nobj,
+      idobj: objId,
+      idobjNum: num,
+      nobj: record.valor,
     })
     setLookupOpen(false)
   }
@@ -67,16 +131,19 @@ export function ObjetoEntrySection({ items, onItemsChange }: ObjetoEntrySectionP
           <YgLabel>Objeto</YgLabel>
           <div className="flex">
             <YgInput
+              ref={objIdRef}
               style={{ width: w(4) }}
-              value={selectedObj?.idobjNum?.toString() || ''}
-              readOnly
+              value={selectedObj?.idobjNum ? String(selectedObj.idobjNum) : ''}
+              onChange={(e) => handleObjIdChange(e.target.value)}
+              onBlur={handleObjIdBlur}
             />
             <YgButton onClick={() => setLookupOpen(true)}>?</YgButton>
             <YgInput
               style={{ width: w(20) }}
               value={selectedObj?.nobj || ''}
               readOnly
-              className="bg-gray-50 ml-1"
+              tabIndex={-1}
+              className="bg-gray-50 ml-1 pointer-events-none select-none"
             />
           </div>
         </YgFieldGroup>
@@ -158,42 +225,18 @@ export function ObjetoEntrySection({ items, onItemsChange }: ObjetoEntrySectionP
         </table>
       </div>
 
-      <Dialog open={lookupOpen} onOpenChange={setLookupOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col p-0 gap-0 bg-yg-bg border-yg-dark rounded-none">
-          <DialogHeader className="bg-yg-dark text-white p-2">
-            <DialogTitle className="text-sm font-bold">Selecionar Objeto</DialogTitle>
-          </DialogHeader>
-          <div className="p-4 overflow-auto yg-scrollbar bg-white">
-            <table className="w-full text-sm text-left border-collapse">
-              <thead className="bg-gray-100 sticky top-0">
-                <tr>
-                  <th className="p-1 border border-gray-300 font-bold">ID</th>
-                  <th className="p-1 border border-gray-300 font-bold">NObj</th>
-                </tr>
-              </thead>
-              <tbody>
-                {objetos.map((row: any) => (
-                  <tr
-                    key={row.id}
-                    className="hover:bg-blue-100 cursor-pointer"
-                    onClick={() => handleSelectObj(row)}
-                  >
-                    <td className="p-1 border">{row.idobj}</td>
-                    <td className="p-1 border">{row.nobj}</td>
-                  </tr>
-                ))}
-                {objetos.length === 0 && (
-                  <tr>
-                    <td colSpan={2} className="p-4 text-center text-gray-500">
-                      Nenhum registro encontrado.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <EntitySearchModal
+        open={lookupOpen}
+        onClose={() => setLookupOpen(false)}
+        onSelect={handleObjetoSelect}
+        config={ENTITY_CONFIGS.objeto}
+      />
+
+      <ValidationDialog
+        open={validationOpen}
+        message={validationMsg}
+        onClose={handleValidationClose}
+      />
     </div>
   )
 }

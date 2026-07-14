@@ -5,21 +5,27 @@ import { toast } from 'sonner'
 import pb from '@/lib/pocketbase/client'
 import { ValidationDialog } from '@/components/ValidationDialog'
 
-export interface FornecedorModalProps {
+export interface EntityConfig {
+  collection: string
+  idField: string
+  nameField: string
+  title: string
+}
+
+export interface EntitySearchModalProps {
   open: boolean
   onClose: () => void
   onSelect: (record: { codigo: string; valor: string }) => void
+  config: EntityConfig
 }
 
-export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProps) {
+export function EntitySearchModal({ open, onClose, onSelect, config }: EntitySearchModalProps) {
   const [filterId, setFilterId] = useState('')
   const [filterName, setFilterName] = useState('')
   const [results, setResults] = useState<any[]>([])
   const [selectedRow, setSelectedRow] = useState<any>(null)
-
   const [newId, setNewId] = useState('')
   const [newName, setNewName] = useState('')
-
   const [loading, setLoading] = useState(false)
   const [validationOpen, setValidationOpen] = useState(false)
   const [validationMsg, setValidationMsg] = useState('')
@@ -44,25 +50,29 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
     try {
       let filter = ''
       if (filterId) {
-        filter = `idfornece = ${filterId}`
+        filter = `${config.idField} = ${filterId}`
       }
       if (filterName) {
-        filter += (filter ? ' && ' : '') + `nofornece ~ "${filterName}"`
+        filter += (filter ? ' && ' : '') + `${config.nameField} ~ "${filterName}"`
       }
 
       let records = await pb
-        .collection('03fornecedor')
-        .getFullList({ filter, sort: 'nofornece', requestKey: null })
+        .collection(config.collection)
+        .getFullList({ filter, sort: config.nameField })
 
       if (filterName) {
         const lowerFilter = filterName.toLowerCase()
-        records = records.filter((r) => r.nofornece.toLowerCase().startsWith(lowerFilter))
+        records = records.filter((r) =>
+          String(r[config.nameField] || '')
+            .toLowerCase()
+            .startsWith(lowerFilter),
+        )
       }
 
       setResults(records)
       setSelectedRow(null)
-    } catch (e) {
-      toast.error('Erro ao consultar fornecedores')
+    } catch {
+      toast.error('Erro ao consultar registros')
     } finally {
       setLoading(false)
     }
@@ -73,11 +83,11 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
     setLoading(true)
     try {
       const records = await pb
-        .collection('03fornecedor')
-        .getFullList({ sort: '-idfornece', requestKey: null })
-      const maxId = records.length > 0 ? records[0].idfornece : 0
+        .collection(config.collection)
+        .getFullList({ sort: `-${config.idField}` })
+      const maxId = records.length > 0 ? records[0][config.idField] : 0
       setNewId((maxId + 1).toString())
-    } catch (e) {
+    } catch {
       toast.error('Erro ao gerar novo ID')
     } finally {
       setLoading(false)
@@ -90,12 +100,12 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
       setLoading(true)
       try {
         const records = await pb
-          .collection('03fornecedor')
-          .getFullList({ sort: '-idfornece', requestKey: null })
-        const maxId = records.length > 0 ? records[0].idfornece : 0
+          .collection(config.collection)
+          .getFullList({ sort: `-${config.idField}` })
+        const maxId = records.length > 0 ? records[0][config.idField] : 0
         targetId = (maxId + 1).toString()
         setNewId(targetId)
-      } catch (e) {
+      } catch {
         toast.error('Erro ao gerar novo ID')
         setLoading(false)
         return
@@ -104,7 +114,7 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
 
     if (!newName.trim()) {
       setLoading(false)
-      setValidationMsg('Nome do fornecedor é OBRIGATÓRIO')
+      setValidationMsg(`Nome do ${config.title} é OBRIGATÓRIO`)
       setValidationOpen(true)
       return
     }
@@ -112,31 +122,31 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
     setLoading(true)
     try {
       const existing = await pb
-        .collection('03fornecedor')
-        .getFullList({ filter: `idfornece = ${targetId}`, requestKey: null })
+        .collection(config.collection)
+        .getFullList({ filter: `${config.idField} = ${targetId}` })
       if (existing.length > 0) {
         toast.error('O código informado já existe')
         setLoading(false)
         return
       }
 
-      await pb.collection('03fornecedor').create({
-        idfornece: parseInt(targetId),
-        nofornece: newName.trim(),
+      await pb.collection(config.collection).create({
+        [config.idField]: parseInt(targetId),
+        [config.nameField]: newName.trim(),
       })
-      toast.success('Fornecedor gravado com sucesso')
+      toast.success(`${config.title} gravado com sucesso`)
 
       await handleConsultar()
 
       const newRecords = await pb
-        .collection('03fornecedor')
-        .getFullList({ filter: `idfornece = ${targetId}`, requestKey: null })
+        .collection(config.collection)
+        .getFullList({ filter: `${config.idField} = ${targetId}` })
       if (newRecords.length > 0) setSelectedRow(newRecords[0])
 
       setNewId('')
       setNewName('')
-    } catch (e) {
-      toast.error('Erro ao gravar fornecedor')
+    } catch {
+      toast.error(`Erro ao gravar ${config.title}`)
     } finally {
       setLoading(false)
     }
@@ -149,7 +159,10 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
 
   const handleSelecionar = () => {
     if (selectedRow) {
-      onSelect({ codigo: selectedRow.idfornece.toString(), valor: selectedRow.nofornece })
+      onSelect({
+        codigo: String(selectedRow[config.idField]),
+        valor: selectedRow[config.nameField],
+      })
     } else if (filterId && filterName) {
       onSelect({ codigo: filterId, valor: filterName })
     } else {
@@ -166,7 +179,7 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
         >
           <DialogHeader className="bg-[#1A2B4C] text-white p-3 flex-shrink-0">
             <DialogTitle className="text-base font-semibold">
-              YGPagamentos - Fornecedores
+              YGPagamentos - {config.title}
             </DialogTitle>
           </DialogHeader>
 
@@ -177,7 +190,6 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
           )}
 
           <div className="p-4 bg-white flex flex-col gap-4 flex-1 overflow-hidden">
-            {/* Filters */}
             <div className="flex gap-4 items-end border-b pb-4">
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">ID</label>
@@ -203,7 +215,6 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
               </button>
             </div>
 
-            {/* Grid */}
             <div className="flex-1 overflow-auto border border-gray-300 rounded-sm min-h-[200px] max-h-[300px] bg-white">
               <table className="w-full text-sm text-left border-collapse">
                 <thead className="bg-gray-500 text-white sticky top-0 z-10">
@@ -219,8 +230,8 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
                       key={r.id}
                       onClick={() => setSelectedRow(r)}
                       onDoubleClick={() => {
-                        setFilterId(r.idfornece.toString())
-                        setFilterName(r.nofornece)
+                        setFilterId(String(r[config.idField]))
+                        setFilterName(r[config.nameField])
                       }}
                       className={`cursor-pointer border-b border-gray-200 transition-colors ${
                         selectedRow?.id === r.id ? 'bg-sky-100' : 'hover:bg-gray-50'
@@ -228,11 +239,13 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
                     >
                       <td className="p-2 border-r border-gray-200 text-center">
                         <div
-                          className={`w-3 h-3 rounded-full border border-gray-400 mx-auto ${selectedRow?.id === r.id ? 'bg-slate-700 ring-2 ring-white' : 'bg-white'}`}
+                          className={`w-3 h-3 rounded-full border border-gray-400 mx-auto ${
+                            selectedRow?.id === r.id ? 'bg-slate-700 ring-2 ring-white' : 'bg-white'
+                          }`}
                         />
                       </td>
-                      <td className="p-2 border-r border-gray-200">{r.idfornece}</td>
-                      <td className="p-2">{r.nofornece}</td>
+                      <td className="p-2 border-r border-gray-200">{r[config.idField]}</td>
+                      <td className="p-2">{r[config.nameField]}</td>
                     </tr>
                   ))}
                   {results.length === 0 && hasSearched && (
@@ -246,7 +259,6 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
               </table>
             </div>
 
-            {/* Novo Parâmetro */}
             <div className="bg-gray-100 p-3 rounded-sm border border-gray-300">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-5 h-5 rounded-full bg-gray-400 text-white flex items-center justify-center text-sm font-bold">
@@ -278,7 +290,6 @@ export function FornecedorModal({ open, onClose, onSelect }: FornecedorModalProp
               </div>
             </div>
 
-            {/* Footer Buttons */}
             <div className="flex justify-between items-center mt-2">
               <div className="flex gap-2">
                 <button
