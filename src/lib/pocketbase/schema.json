@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-14T19:40:45.140Z",
+  "generatedAt": "2026-07-14T19:51:02.098Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -60,14 +65,18 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onUpdate"]
+          "autodateTriggers": [
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -382,7 +391,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX `idx_01movimento_idm` ON `01movimento` (idm)"]
+      "indexes": [
+        "CREATE UNIQUE INDEX `idx_01movimento_idm` ON `01movimento` (idm)"
+      ]
     },
     {
       "name": "02moveobjeto",
