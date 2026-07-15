@@ -16,6 +16,7 @@ import { EntitySearchModal } from '@/components/EntitySearchModal'
 import { ENTITY_CONFIGS, FORM_FIELD_MAP } from '@/lib/entity-config'
 import { useResizableColumns } from '@/hooks/use-resizable-columns'
 import { isValidAno, isValidMes, isValidDia, numericOnly } from '@/lib/date-validation'
+import { normalizeDecimalInput } from '@/lib/decimal-utils'
 
 const w = (chars: number) => `${chars * 8 + 12}px`
 
@@ -532,7 +533,9 @@ export default function Index() {
               <YgInput
                 style={{ width: w(32) }}
                 value={formData.valor}
-                onChange={(e: any) => setFormData({ ...formData, valor: e.target.value })}
+                onChange={(e: any) =>
+                  setFormData({ ...formData, valor: normalizeDecimalInput(e.target.value) })
+                }
               />
             </YgFieldGroup>
             <YgFieldGroup>
