@@ -10,7 +10,7 @@ export const api = {
   categorias: { list: () => pb.collection('09catego').getFullList({ sort: 'idcat' }) },
   naturezas: { list: () => pb.collection('10natureza').getFullList({ sort: 'idnat' }) },
   movimentos: {
-    list: () => pb.collection('01movimento').getFullList({ sort: '-idm' }),
+    list: () => pb.collection('01movimento').getFullList({ sort: '-ano, -mes, -dia, idfornece' }),
     create: (data: any) => pb.collection('01movimento').create(data),
     update: (id: string, data: any) => pb.collection('01movimento').update(id, data),
     delete: (id: string) => pb.collection('01movimento').delete(id),
