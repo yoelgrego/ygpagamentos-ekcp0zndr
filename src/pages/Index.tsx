@@ -268,7 +268,20 @@ export default function Index() {
     setFormData((p) => ({ ...p, [field]: numericOnly(value) }))
   }
 
-  const handleRowClick = (row: any) => {
+  const loadObjetosForMov = async (idmov: number) => {
+    try {
+      const moveobjetos = await api.moveobjetos.listByMov(idmov)
+      const objItems: PendingObj[] = moveobjetos.map((mo: any) => {
+        const obj = objetos.find((o: any) => o.idobj === mo.idobj)
+        return { idobj: obj?.id || '', idobjNum: mo.idobj, nobj: obj?.nobj || '' }
+      })
+      setObjetoItems(objItems)
+    } catch {
+      setObjetoItems([])
+    }
+  }
+
+  const handleRowClick = async (row: any) => {
     setFormData({
       id: row.id,
       idmov: row.idmov?.toString() || '',
@@ -293,6 +306,7 @@ export default function Index() {
       idnatNum: row.idnat?.toString() || '',
       natName: row.naturezaNome || '',
     })
+    await loadObjetosForMov(row.idmov)
   }
 
   const handleIdBlur = async () => {
@@ -302,17 +316,7 @@ export default function Index() {
     if (isNaN(idNum)) return
     const found = v1Movimentos.find((m: any) => m.idmov === idNum)
     if (found) {
-      handleRowClick(found)
-      try {
-        const moveobjetos = await api.moveobjetos.listByMov(idNum)
-        const objItems: PendingObj[] = moveobjetos.map((mo: any) => {
-          const obj = objetos.find((o: any) => o.idobj === mo.idobj)
-          return { idobj: obj?.id || '', idobjNum: mo.idobj, nobj: obj?.nobj || '' }
-        })
-        setObjetoItems(objItems)
-      } catch {
-        setObjetoItems([])
-      }
+      await handleRowClick(found)
     } else {
       const maxIdm = movimentos.reduce((max: number, m: any) => Math.max(max, m.idm || 0), 0)
       setFormData((p) => ({ ...p, idmov: (maxIdm + 1).toString() }))
