@@ -12,6 +12,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
 import { ObjetoEntrySection, type PendingObj } from '@/components/ObjetoEntrySection'
 import { ValidationDialog } from '@/components/ValidationDialog'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EntitySearchModal } from '@/components/EntitySearchModal'
 import { ENTITY_CONFIGS, FORM_FIELD_MAP } from '@/lib/entity-config'
 import { useResizableColumns } from '@/hooks/use-resizable-columns'
@@ -82,6 +83,33 @@ function createLookupMap(items: any[], idField: string, nameField: string): Map<
   return map
 }
 
+interface ConsultaFilter {
+  idm?: number
+  ano?: number
+  mes?: number
+  dia?: number
+  idforn?: number
+  idben?: number
+  idmoeda?: number
+  valor?: number
+  cartao?: number
+  idtipodoc?: number
+  idpag?: number
+  situacao?: string
+  idcat?: number
+  idnat?: number
+  matchingIdmovs?: Set<number>
+}
+
+async function fetchMaxIdm(): Promise<number> {
+  try {
+    const result = await pb.collection('01movimento').getList(1, 1, { sort: '-idm' })
+    return result.items.length > 0 ? (result.items[0] as any).idm : 0
+  } catch {
+    return 0
+  }
+}
+
 export default function Index() {
   const {
     movimentos,
@@ -117,6 +145,12 @@ export default function Index() {
     open: false,
     type: null,
   })
+  const [consultaFilter, setConsultaFilter] = useState<ConsultaFilter | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean
+    message: string
+    onConfirm: () => void
+  }>({ open: false, message: '', onConfirm: () => {} })
 
   const idRef = useRef<HTMLInputElement>(null)
   const anoRef = useRef<HTMLInputElement>(null)
@@ -125,13 +159,17 @@ export default function Index() {
   const fornIdRef = useRef<HTMLInputElement>(null)
   const benIdRef = useRef<HTMLInputElement>(null)
   const moedaIdRef = useRef<HTMLInputElement>(null)
+  const valorRef = useRef<HTMLInputElement>(null)
+  const cartaoRef = useRef<HTMLInputElement>(null)
   const tipodocIdRef = useRef<HTMLInputElement>(null)
   const pagIdRef = useRef<HTMLInputElement>(null)
+  const situacaoRef = useRef<HTMLInputElement>(null)
   const catIdRef = useRef<HTMLInputElement>(null)
   const natIdRef = useRef<HTMLInputElement>(null)
 
   const [validationOpen, setValidationOpen] = useState(false)
   const [validationMessage, setValidationMessage] = useState('')
+  const [validationTitle, setValidationTitle] = useState('Aviso')
   const focusAfterClose = useRef<RefObject<HTMLInputElement> | null>(null)
 
   useEffect(() => {
@@ -184,8 +222,38 @@ export default function Index() {
     }))
   }, [movimentos, lookupMaps])
 
-  const showValidation = (message: string, ref: RefObject<HTMLInputElement>) => {
-    focusAfterClose.current = ref
+  const displayMovimentos = useMemo(() => {
+    if (!consultaFilter) return v1Movimentos
+    const filtered = v1Movimentos.filter((row: any) => {
+      const f = consultaFilter
+      if (f.idm !== undefined && row.idmov !== f.idm) return false
+      if (f.ano !== undefined && row.ano !== f.ano) return false
+      if (f.mes !== undefined && row.mes !== f.mes) return false
+      if (f.dia !== undefined && row.dia !== f.dia) return false
+      if (f.idforn !== undefined && row.idforn !== f.idforn) return false
+      if (f.idben !== undefined && row.idben !== f.idben) return false
+      if (f.idmoeda !== undefined && row.idmoeda !== f.idmoeda) return false
+      if (f.valor !== undefined && Math.abs(Number(row.valor) - f.valor) > 0.01) return false
+      if (f.cartao !== undefined && row.cartao !== f.cartao) return false
+      if (f.idtipodoc !== undefined && row.idtipodoc !== f.idtipodoc) return false
+      if (f.idpag !== undefined && row.idpag !== f.idpag) return false
+      if (f.situacao !== undefined && row.situacao !== f.situacao) return false
+      if (f.idcat !== undefined && row.idcat !== f.idcat) return false
+      if (f.idnat !== undefined && row.idnat !== f.idnat) return false
+      if (f.matchingIdmovs !== undefined && !f.matchingIdmovs.has(row.idmov)) return false
+      return true
+    })
+    return [...filtered].sort((a: any, b: any) => {
+      if (b.ano !== a.ano) return b.ano - a.ano
+      if (b.mes !== a.mes) return b.mes - a.mes
+      if (b.dia !== a.dia) return b.dia - a.dia
+      return (a.fornecedorNome || '').localeCompare(b.fornecedorNome || '')
+    })
+  }, [v1Movimentos, consultaFilter])
+
+  const showValidation = (message: string, ref?: RefObject<HTMLInputElement>, title?: string) => {
+    focusAfterClose.current = ref || null
+    setValidationTitle(title || 'Aviso')
     setValidationMessage(message)
     setValidationOpen(true)
   }
@@ -193,9 +261,7 @@ export default function Index() {
   const handleValidationClose = () => {
     setValidationOpen(false)
     const ref = focusAfterClose.current
-    if (ref) {
-      setTimeout(() => ref.current?.focus(), 50)
-    }
+    if (ref) setTimeout(() => ref.current?.focus(), 50)
   }
 
   const handleNumericChange = (field: string, value: string) => {
@@ -234,7 +300,6 @@ export default function Index() {
     if (!idValue) return
     const idNum = parseInt(idValue)
     if (isNaN(idNum)) return
-
     const found = v1Movimentos.find((m: any) => m.idmov === idNum)
     if (found) {
       handleRowClick(found)
@@ -242,11 +307,7 @@ export default function Index() {
         const moveobjetos = await api.moveobjetos.listByMov(idNum)
         const objItems: PendingObj[] = moveobjetos.map((mo: any) => {
           const obj = objetos.find((o: any) => o.idobj === mo.idobj)
-          return {
-            idobj: obj?.id || '',
-            idobjNum: mo.idobj,
-            nobj: obj?.nobj || '',
-          }
+          return { idobj: obj?.id || '', idobjNum: mo.idobj, nobj: obj?.nobj || '' }
         })
         setObjetoItems(objItems)
       } catch {
@@ -260,9 +321,8 @@ export default function Index() {
   }
 
   const handleAnoBlur = () => {
-    const value = formData.ano.trim()
-    if (!value) return
-    if (!isValidAno(value)) {
+    if (!formData.ano.trim()) return
+    if (!isValidAno(formData.ano)) {
       setFormData((p) => ({ ...p, ano: '' }))
       showValidation(
         'Dado inválido. Ano deve ser maior ou igual a 1900, usando os quatro dígitos',
@@ -272,18 +332,16 @@ export default function Index() {
   }
 
   const handleMesBlur = () => {
-    const value = formData.mes.trim()
-    if (!value) return
-    if (!isValidMes(value)) {
+    if (!formData.mes.trim()) return
+    if (!isValidMes(formData.mes)) {
       setFormData((p) => ({ ...p, mes: '' }))
       showValidation('Mês inválido. Digite novamente', mesRef)
     }
   }
 
   const handleDiaBlur = () => {
-    const value = formData.dia.trim()
-    if (!value) return
-    if (!isValidDia(value, formData.ano, formData.mes)) {
+    if (!formData.dia.trim()) return
+    if (!isValidDia(formData.dia, formData.ano, formData.mes)) {
       setFormData((p) => ({ ...p, dia: '' }))
       showValidation('Dia inválido. Digite novamente', diaRef)
     }
@@ -298,8 +356,8 @@ export default function Index() {
     if (!val) return
     const num = parseInt(val)
     if (isNaN(num)) {
-      const fieldMap = FORM_FIELD_MAP[type]
-      setFormData((p) => ({ ...p, [fieldMap.idField]: '', [fieldMap.nameField]: '' }))
+      const fm = FORM_FIELD_MAP[type]
+      setFormData((p) => ({ ...p, [fm.idField]: '', [fm.nameField]: '' }))
       return
     }
     const config = ENTITY_CONFIGS[type]
@@ -307,11 +365,11 @@ export default function Index() {
       const found = await pb
         .collection(config.collection)
         .getFirstListItem(`${config.idField} = ${num}`)
-      const fieldMap = FORM_FIELD_MAP[type]
-      setFormData((p) => ({ ...p, [fieldMap.nameField]: found[config.nameField] }))
+      const fm = FORM_FIELD_MAP[type]
+      setFormData((p) => ({ ...p, [fm.nameField]: found[config.nameField] }))
     } catch {
-      const fieldMap = FORM_FIELD_MAP[type]
-      setFormData((p) => ({ ...p, [fieldMap.idField]: '', [fieldMap.nameField]: '' }))
+      const fm = FORM_FIELD_MAP[type]
+      setFormData((p) => ({ ...p, [fm.idField]: '', [fm.nameField]: '' }))
       showValidation('Código inválido. Consulte a base de dados usando o botão.', ref)
     }
   }
@@ -320,24 +378,32 @@ export default function Index() {
 
   const handleEntitySelect = (record: { codigo: string; valor: string }) => {
     if (!entityModal.type) return
-    const fieldMap = FORM_FIELD_MAP[entityModal.type]
-    if (fieldMap) {
-      setFormData((p) => ({
-        ...p,
-        [fieldMap.idField]: record.codigo,
-        [fieldMap.nameField]: record.valor,
-      }))
+    const fm = FORM_FIELD_MAP[entityModal.type]
+    if (fm) {
+      setFormData((p) => ({ ...p, [fm.idField]: record.codigo, [fm.nameField]: record.valor }))
     }
     setEntityModal({ open: false, type: null })
   }
 
   const diaDisabled = !isValidAno(formData.ano) || !isValidMes(formData.mes)
 
-  const handleNovo = () => {
+  const handleNovo = async () => {
     setFormData(defaultForm)
     setObjetoItems([])
+    setConsultaFilter(null)
+    const maxIdm = await fetchMaxIdm()
+    const fallbackMax = movimentos.reduce((max: number, m: any) => Math.max(max, m.idm || 0), 0)
+    const nextId = Math.max(maxIdm, fallbackMax) + 1
+    setFormData((p) => ({ ...p, idmov: nextId.toString() }))
+    setTimeout(() => idRef.current?.focus(), 50)
   }
-  const handleLimpar = () => handleNovo()
+
+  const handleLimpar = () => {
+    setFormData(defaultForm)
+    setObjetoItems([])
+    setConsultaFilter(null)
+    setTimeout(() => idRef.current?.focus(), 50)
+  }
 
   const handleExcluir = async () => {
     if (!formData.id) return toast.error('Nenhum movimento selecionado')
@@ -350,54 +416,131 @@ export default function Index() {
     }
   }
 
-  const handleGravar = async () => {
-    const ano = parseInt(formData.ano)
-    const mes = parseInt(formData.mes)
-    const dia = parseInt(formData.dia)
-    if (isNaN(ano) || ano < 2000 || ano > 2100) return toast.error('Ano inválido (2000-2100)')
-    if (isNaN(mes) || mes < 1 || mes > 12) return toast.error('Mês inválido (1-12)')
-    if (isNaN(dia) || dia < 1 || dia > 31) return toast.error('Dia inválido (1-31)')
-    if (!formData.valor) return toast.error('Valor é obrigatório')
-    if (!formData.idfornNum) return toast.error('Fornecedor é obrigatório')
-    if (!formData.idbenNum) return toast.error('Beneficiário é obrigatório')
-    if (!formData.idmoedaNum) return toast.error('Moeda é obrigatória')
-    if (!formData.idtipodocNum) return toast.error('Tipo de documento é obrigatório')
-    if (!formData.idpagNum) return toast.error('Pagador é obrigatório')
-    if (!formData.idcatNum) return toast.error('Categoria é obrigatória')
-    if (!formData.idnatNum) return toast.error('Natureza é obrigatória')
-    if (!formData.cartao) return toast.error('Cartão é obrigatório')
-
+  const proceedWithGravar = async (idm: number, recordId?: string) => {
     const payload = {
-      idm: formData.idmov ? parseInt(formData.idmov) : Math.floor(Math.random() * 1000000),
-      ano,
-      mes,
-      dia,
-      valor: parseFloat(formData.valor),
+      idm,
+      ano: parseInt(formData.ano),
+      mes: parseInt(formData.mes),
+      dia: parseInt(formData.dia),
       idfornece: parseInt(formData.idfornNum),
       idbenef: parseInt(formData.idbenNum),
       idmoeda: parseInt(formData.idmoedaNum),
+      valor: parseFloat(formData.valor.replace(',', '.')),
       idtipo: parseInt(formData.idtipodocNum),
+      card: parseInt(formData.cartao) === 2 ? 2 : 1,
       idpaga: parseInt(formData.idpagNum),
+      pago: formData.situacao,
       idcat: parseInt(formData.idcatNum),
       idnat: parseInt(formData.idnatNum),
-      card: parseInt(formData.cartao),
-      pago: formData.situacao || '',
     }
-
     try {
-      if (formData.id) {
-        await api.movimentos.update(formData.id, payload)
-        toast.success('Atualizado com sucesso')
+      let savedId: string
+      if (recordId) {
+        await api.movimentos.update(recordId, payload)
+        savedId = recordId
       } else {
         const res = await api.movimentos.create(payload)
-        setFormData((p) => ({ ...p, id: res.id, idmov: res.idm.toString() }))
-        toast.success('Criado com sucesso')
+        savedId = res.id
       }
-      fetchMovimentos()
+      await api.moveobjetos.deleteByMov(idm)
+      for (const item of objetoItems) {
+        await api.moveobjetos.create({ idmov: idm, idobj: item.idobjNum })
+      }
+      setFormData((p) => ({ ...p, id: savedId, idmov: idm.toString() }))
+      setConsultaFilter({ idm })
+      await fetchMovimentos()
+      showValidation('Registro gravado', undefined, 'Informação')
     } catch (e) {
       const fieldErrs = extractFieldErrors(e)
       toast.error(Object.values(fieldErrs).join(', ') || 'Erro ao gravar')
     }
+  }
+
+  const handleGravar = async () => {
+    const mandatoryFields: { value: string; ref: RefObject<HTMLInputElement> }[] = [
+      { value: formData.ano, ref: anoRef },
+      { value: formData.mes, ref: mesRef },
+      { value: formData.dia, ref: diaRef },
+      { value: formData.idfornNum && formData.fornName ? formData.idfornNum : '', ref: fornIdRef },
+      { value: formData.idbenNum && formData.benName ? formData.idbenNum : '', ref: benIdRef },
+      {
+        value: formData.idmoedaNum && formData.moedaName ? formData.idmoedaNum : '',
+        ref: moedaIdRef,
+      },
+      { value: formData.valor, ref: valorRef },
+      { value: formData.cartao, ref: cartaoRef },
+      {
+        value: formData.idtipodocNum && formData.tipoDocName ? formData.idtipodocNum : '',
+        ref: tipodocIdRef,
+      },
+      { value: formData.idpagNum && formData.pagadorName ? formData.idpagNum : '', ref: pagIdRef },
+      { value: formData.situacao, ref: situacaoRef },
+      { value: formData.idcatNum && formData.catName ? formData.idcatNum : '', ref: catIdRef },
+      { value: formData.idnatNum && formData.natName ? formData.idnatNum : '', ref: natIdRef },
+    ]
+    const emptyField = mandatoryFields.find((f) => !f.value.trim())
+    if (emptyField) {
+      showValidation('Faltam dados necessários', emptyField.ref)
+      return
+    }
+    let idmValue = formData.idmov.trim()
+    if (!idmValue) {
+      const maxIdm = await fetchMaxIdm()
+      const fallbackMax = movimentos.reduce((max: number, m: any) => Math.max(max, m.idm || 0), 0)
+      idmValue = (Math.max(maxIdm, fallbackMax) + 1).toString()
+      setFormData((p) => ({ ...p, idmov: idmValue }))
+    }
+    const idm = parseInt(idmValue)
+    if (isNaN(idm)) return toast.error('ID inválido')
+    const existingMov = movimentos.find((m: any) => m.idm === idm)
+    if (existingMov && formData.id !== existingMov.id) {
+      setConfirmDialog({
+        open: true,
+        message: 'Registro já existente. Deseja alterar o já gravado?',
+        onConfirm: () => {
+          setConfirmDialog((prev) => ({ ...prev, open: false }))
+          proceedWithGravar(idm, existingMov.id)
+        },
+      })
+      return
+    }
+    await proceedWithGravar(idm, existingMov?.id || formData.id || undefined)
+  }
+
+  const handleConsultar = async () => {
+    const filter: ConsultaFilter = {}
+    if (formData.idmov.trim()) filter.idm = parseInt(formData.idmov)
+    if (formData.ano.trim()) filter.ano = parseInt(formData.ano)
+    if (formData.mes.trim()) filter.mes = parseInt(formData.mes)
+    if (formData.dia.trim()) filter.dia = parseInt(formData.dia)
+    if (formData.idfornNum.trim()) filter.idforn = parseInt(formData.idfornNum)
+    if (formData.idbenNum.trim()) filter.idben = parseInt(formData.idbenNum)
+    if (formData.idmoedaNum.trim()) filter.idmoeda = parseInt(formData.idmoedaNum)
+    if (formData.valor.trim()) filter.valor = parseFloat(formData.valor.replace(',', '.'))
+    if (formData.cartao.trim()) filter.cartao = parseInt(formData.cartao)
+    if (formData.idtipodocNum.trim()) filter.idtipodoc = parseInt(formData.idtipodocNum)
+    if (formData.idpagNum.trim()) filter.idpag = parseInt(formData.idpagNum)
+    if (formData.situacao.trim()) filter.situacao = formData.situacao
+    if (formData.idcatNum.trim()) filter.idcat = parseInt(formData.idcatNum)
+    if (formData.idnatNum.trim()) filter.idnat = parseInt(formData.idnatNum)
+    if (objetoItems.length > 0) {
+      try {
+        const allMoveobjetos = await api.moveobjetos.listAll()
+        const objIds = objetoItems.map((oi) => oi.idobjNum)
+        filter.matchingIdmovs = new Set(
+          allMoveobjetos.filter((mo: any) => objIds.includes(mo.idobj)).map((mo: any) => mo.idmov),
+        )
+      } catch {
+        /* skip object filtering on error */
+      }
+    }
+    if (Object.keys(filter).length === 0) {
+      setConsultaFilter(null)
+      toast.info('Exibindo todos os registros')
+      return
+    }
+    setConsultaFilter(filter)
+    toast.info('Consulta realizada')
   }
 
   const nameFieldClass = 'bg-gray-50 ml-1 pointer-events-none select-none'
@@ -531,6 +674,7 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>Valor</YgLabel>
               <YgInput
+                ref={valorRef}
                 style={{ width: w(32) }}
                 value={formData.valor}
                 onChange={(e: any) =>
@@ -541,6 +685,7 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>Cartão</YgLabel>
               <YgInput
+                ref={cartaoRef}
                 style={{ width: w(4) }}
                 value={formData.cartao}
                 onChange={(e: any) => setFormData({ ...formData, cartao: e.target.value })}
@@ -592,6 +737,7 @@ export default function Index() {
             <YgFieldGroup>
               <YgLabel>Situação</YgLabel>
               <YgInput
+                ref={situacaoRef}
                 style={{ width: w(10) }}
                 value={formData.situacao}
                 onChange={(e: any) => setFormData({ ...formData, situacao: e.target.value })}
@@ -702,14 +848,14 @@ export default function Index() {
               </tr>
             </thead>
             <tbody>
-              {v1Movimentos.length === 0 && (
+              {displayMovimentos.length === 0 && (
                 <tr>
                   <td colSpan={GRID_COL_DEFS.length} className="text-center text-gray-500 py-8">
                     Nenhum registro encontrado.
                   </td>
                 </tr>
               )}
-              {v1Movimentos.map((row: any) => {
+              {displayMovimentos.map((row: any) => {
                 const cells = [
                   row.idmov,
                   row.ano,
@@ -754,7 +900,7 @@ export default function Index() {
                   </tr>
                 )
               })}
-              {v1Movimentos.length > 0 &&
+              {displayMovimentos.length > 0 &&
                 [...Array(10)].map((_, i) => (
                   <tr key={`empty-${i}`} className="border-b border-gray-200 h-[24px]">
                     {[...Array(GRID_COL_DEFS.length)].map((_, j) => (
@@ -780,11 +926,7 @@ export default function Index() {
           [
             { label: 'Novo', action: handleNovo },
             { label: 'Gravar', action: handleGravar },
-            {
-              label: 'Consultar',
-              action: () => toast.info('Consulta será implementada em breve.'),
-              icon: Search,
-            },
+            { label: 'Consultar', action: handleConsultar, icon: Search },
             { label: 'Limpar', action: handleLimpar },
             {
               label: 'Relatório',
@@ -813,7 +955,15 @@ export default function Index() {
       <ValidationDialog
         open={validationOpen}
         message={validationMessage}
+        title={validationTitle}
         onClose={handleValidationClose}
+      />
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
       />
 
       <EntitySearchModal

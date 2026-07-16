@@ -19,8 +19,15 @@ export const api = {
     list: () => pb.collection('02moveobjeto').getFullList({ expand: 'idobj' }),
     listByMov: (idmov: number) =>
       pb.collection('02moveobjeto').getFullList({ filter: `idmov = ${idmov}` }),
+    listAll: () => pb.collection('02moveobjeto').getFullList(),
     create: (data: any) => pb.collection('02moveobjeto').create(data),
     delete: (id: string) => pb.collection('02moveobjeto').delete(id),
+    deleteByMov: async (idmov: number) => {
+      const records = await pb
+        .collection('02moveobjeto')
+        .getFullList({ filter: `idmov = ${idmov}` })
+      await Promise.all(records.map((r) => pb.collection('02moveobjeto').delete(r.id)))
+    },
   },
   clearMovimentos: () => pb.send('/backend/v1/clear-movimentos', { method: 'POST' }),
 }

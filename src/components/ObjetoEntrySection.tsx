@@ -3,7 +3,7 @@ import type { RefObject } from 'react'
 import { YgLabel, YgInput, YgButton, YgFieldGroup } from '@/components/yg-ui'
 import { useAppStore } from '@/stores/use-app-store'
 import { useResizableColumns } from '@/hooks/use-resizable-columns'
-import { Plus, Trash2, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { EntitySearchModal } from '@/components/EntitySearchModal'
 import { ENTITY_CONFIGS } from '@/lib/entity-config'
@@ -86,17 +86,15 @@ export function ObjetoEntrySection({ items, onItemsChange }: ObjetoEntrySectionP
   }
 
   const handleAdd = () => {
-    if (!selectedObj || !selectedObj.nobj) return
+    if (!selectedObj || !selectedObj.idobjNum || !selectedObj.nobj.trim()) {
+      showValidation('Informe o código e o nome do objeto', objIdRef)
+      return
+    }
     onItemsChange([...items, { ...selectedObj }])
     setSelectedObj(null)
   }
 
   const handleNovo = () => {
-    setSelectedObj(null)
-  }
-
-  const handleClear = () => {
-    onItemsChange([])
     setSelectedObj(null)
   }
 
@@ -159,12 +157,6 @@ export function ObjetoEntrySection({ items, onItemsChange }: ObjetoEntrySectionP
             className="h-[22px] px-2 bg-yg-dark text-white text-[11px] font-bold flex items-center gap-1 hover:bg-blue-800 rounded-none"
           >
             <Plus className="w-2.5 h-2.5" /> Adicionar
-          </button>
-          <button
-            onClick={handleClear}
-            className="h-[22px] px-2 bg-gray-300 border border-gray-500 text-black text-[11px] font-bold flex items-center gap-1 hover:bg-gray-400 rounded-none"
-          >
-            <Trash2 className="w-2.5 h-2.5" /> Limpar
           </button>
         </div>
       </div>
