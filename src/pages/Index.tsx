@@ -14,6 +14,7 @@ import { ObjetoEntrySection, type PendingObj } from '@/components/ObjetoEntrySec
 import { ValidationDialog } from '@/components/ValidationDialog'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EntitySearchModal } from '@/components/EntitySearchModal'
+import { AnalysisModal } from '@/components/AnalysisModal'
 import { ENTITY_CONFIGS, FORM_FIELD_MAP } from '@/lib/entity-config'
 import { useResizableColumns } from '@/hooks/use-resizable-columns'
 import { isValidAno, isValidMes, isValidDia, numericOnly } from '@/lib/date-validation'
@@ -151,6 +152,7 @@ export default function Index() {
     message: string
     onConfirm: () => void
   }>({ open: false, message: '', onConfirm: () => {} })
+  const [analysisOpen, setAnalysisOpen] = useState(false)
 
   const idRef = useRef<HTMLInputElement>(null)
   const anoRef = useRef<HTMLInputElement>(null)
@@ -938,7 +940,7 @@ export default function Index() {
             },
             {
               label: 'Análise',
-              action: () => toast.info('Análise não implementada nesta versão.'),
+              action: () => setAnalysisOpen(true),
             },
           ] as Array<{ label: string; action: () => void; icon?: typeof Search }>
         ).map((btn) => {
@@ -976,6 +978,8 @@ export default function Index() {
         onSelect={handleEntitySelect}
         config={ENTITY_CONFIGS[entityModal.type || 'fornecedor']}
       />
+
+      <AnalysisModal open={analysisOpen} onOpenChange={setAnalysisOpen} />
     </div>
   )
 }
