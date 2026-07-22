@@ -19,6 +19,7 @@ import { ENTITY_CONFIGS, FORM_FIELD_MAP } from '@/lib/entity-config'
 import { useResizableColumns } from '@/hooks/use-resizable-columns'
 import { isValidAno, isValidMes, isValidDia, numericOnly } from '@/lib/date-validation'
 import { normalizeDecimalInput } from '@/lib/decimal-utils'
+import { generateMovementsReport } from '@/lib/movements-report'
 
 const w = (chars: number) => `${chars * 8 + 12}px`
 
@@ -936,7 +937,14 @@ export default function Index() {
             { label: 'Limpar', action: handleLimpar },
             {
               label: 'Relatório',
-              action: () => toast.info('Relatório não implementado nesta versão.'),
+              action: () => {
+                try {
+                  generateMovementsReport(displayMovimentos)
+                  toast.success('Relatório gerado com sucesso')
+                } catch {
+                  toast.error('Erro ao gerar relatório')
+                }
+              },
             },
             {
               label: 'Análise',
