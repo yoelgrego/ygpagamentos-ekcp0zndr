@@ -1,4 +1,4 @@
-import { PdfBuilder, truncateText } from './pdf-builder'
+import { PdfBuilder, truncateText, wrapText } from './pdf-builder'
 
 const GRID_COLS = [
   'ID',
@@ -33,8 +33,11 @@ const PAGE_H = 595
 const MARGIN = 36
 const FONT_SIZE = 7
 const HEADER_FS = 7
-const ROW_H = 14
 const HEADER_H = 16
+const LINE_HEIGHT = FONT_SIZE * 1.3
+const ROW_PADDING = 4
+const MIN_ROW_H = LINE_HEIGHT + ROW_PADDING
+const FIRST_LINE_OFFSET = 9
 const DARK_BLUE: [number, number, number] = [30, 58, 95]
 const LIGHT_GRAY: [number, number, number] = [200, 200, 200]
 const WHITE: [number, number, number] = [255, 255, 255]
@@ -93,19 +96,24 @@ export function generateMovementsReport(rows: any[]): void {
     }
   }
 
-  const drawRow = (topY: number, cells: string[]) => {
+  const drawRow = (topY: number, wrappedCells: string[][], rowH: number) => {
+    const firstLineY = topY - FIRST_LINE_OFFSET
     let cx = MARGIN
-    for (let i = 0; i < cells.length; i++) {
-      const t = truncateText(cells[i], colWs[i] - 4, FONT_SIZE, false)
-      pdf.text(cx + 2, topY - 10, t, FONT_SIZE)
+    for (let i = 0; i < wrappedCells.length; i++) {
+      pdf.multilineText(cx + 2, firstLineY, wrappedCells[i], FONT_SIZE, false)
       cx += colWs[i]
     }
-    pdf.line(MARGIN, topY - ROW_H, MARGIN + availW, topY - ROW_H, 0.3, LIGHT_GRAY)
+    pdf.line(MARGIN, topY - rowH, MARGIN + availW, topY - rowH, 0.3, LIGHT_GRAY)
     cx = MARGIN
     for (let i = 0; i <= GRID_COLS.length; i++) {
-      pdf.line(cx, topY, cx, topY - ROW_H, 0.3, LIGHT_GRAY)
+      pdf.line(cx, topY, cx, topY - rowH, 0.3, LIGHT_GRAY)
       if (i < GRID_COLS.length) cx += colWs[i]
     }
+  }
+
+  const computeRowHeight = (wrappedCells: string[][]): number => {
+    const maxLines = Math.max(...wrappedCells.map((w) => w.length), 1)
+    return Math.max(maxLines * LINE_HEIGHT + ROW_PADDING, MIN_ROW_H)
   }
 
   let y = titleY - 50
@@ -116,7 +124,11 @@ export function generateMovementsReport(rows: any[]): void {
   y -= HEADER_H
 
   for (const row of rows) {
-    if (y - ROW_H < bottomLimit) {
+    const cells = rowToCells(row)
+    const wrappedCells = cells.map((text, i) => wrapText(text, colWs[i] - 4, FONT_SIZE, false))
+    const rowH = computeRowHeight(wrappedCells)
+
+    if (y - rowH < bottomLimit) {
       if (pageNum > 1) {
         pdf.text(PAGE_W - MARGIN, 20, String(pageNum), 9, false, 'right')
       }
@@ -126,8 +138,9 @@ export function generateMovementsReport(rows: any[]): void {
       drawHeader(y)
       y -= HEADER_H
     }
-    drawRow(y, rowToCells(row))
-    y -= ROW_H
+
+    drawRow(y, wrappedCells, rowH)
+    y -= rowH
   }
 
   if (pageNum > 1) {

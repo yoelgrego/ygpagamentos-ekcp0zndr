@@ -41,6 +41,38 @@ export function truncateText(
   return maxChars > 3 ? text.substring(0, maxChars - 3) + '...' : text.substring(0, maxChars)
 }
 
+export function wrapText(
+  text: string,
+  maxWidth: number,
+  fontSize: number,
+  bold: boolean,
+): string[] {
+  const charW = fontSize * (bold ? 0.55 : 0.5)
+  const words = text.split(/\s+/).filter((w) => w.length > 0)
+  if (words.length === 0) return ['']
+
+  const lines: string[] = []
+  let currentLine = ''
+
+  for (const word of words) {
+    const testLine = currentLine ? currentLine + ' ' + word : word
+    if (testLine.length * charW <= maxWidth) {
+      currentLine = testLine
+    } else {
+      if (currentLine) lines.push(currentLine)
+      if (word.length * charW > maxWidth) {
+        const maxChars = Math.floor(maxWidth / charW)
+        currentLine =
+          maxChars > 3 ? word.substring(0, maxChars - 3) + '...' : word.substring(0, maxChars)
+      } else {
+        currentLine = word
+      }
+    }
+  }
+  if (currentLine) lines.push(currentLine)
+  return lines.length > 0 ? lines : ['']
+}
+
 export class PdfBuilder {
   private pages: string[][] = [[]]
   private readonly pw: number
@@ -85,6 +117,20 @@ export class PdfBuilder {
     this.cur.push(
       `${r} ${g} ${b} rg BT /${fn} ${fs} Tf ${ax.toFixed(1)} ${y.toFixed(1)} Td (${esc}) Tj ET`,
     )
+  }
+
+  multilineText(
+    x: number,
+    y: number,
+    lines: string[],
+    fs: number,
+    bold = false,
+    color: [number, number, number] = [0, 0, 0],
+  ) {
+    const lineHeight = fs * 1.3
+    for (let i = 0; i < lines.length; i++) {
+      this.text(x, y - i * lineHeight, lines[i], fs, bold, 'left', color)
+    }
   }
 
   line(
